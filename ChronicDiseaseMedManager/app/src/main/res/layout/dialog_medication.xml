@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="关联疾病"
+            android:layout_marginBottom="4dp" />
+        <Spinner
+            android:id="@+id/spDisease"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="#F3F4F6" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="药品名称 *"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp"
+            android:textStyle="bold" />
+        <EditText
+            android:id="@+id/etMedicineName"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:hint="如：阿司匹林"
+            android:background="#F3F4F6" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="通用名称"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp" />
+        <EditText
+            android:id="@+id/etGenericName"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:hint="药品的通用名称"
+            android:background="#F3F4F6" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="剂量"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp" />
+        <EditText
+            android:id="@+id/etDosage"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:hint="如：10mg"
+            android:background="#F3F4F6" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="服用频率"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp" />
+        <EditText
+            android:id="@+id/etFrequency"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:hint="如：每日一次、每日三次"
+            android:background="#F3F4F6" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="服药时间"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <EditText
+                android:id="@+id/etTakeTimeMorning"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:hint="早上"
+                android:background="#F3F4F6"
+                android:gravity="center" />
+            <EditText
+                android:id="@+id/etTakeTimeNoon"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:hint="中午"
+                android:background="#F3F4F6"
+                android:gravity="center" />
+            <EditText
+                android:id="@+id/etTakeTimeEvening"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:hint="晚上"
+                android:background="#F3F4F6"
+                android:gravity="center" />
+            <EditText
+                android:id="@+id/etTakeTimeNight"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:hint="睡前"
+                android:background="#F3F4F6"
+                android:gravity="center" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="服用说明"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp" />
+        <EditText
+            android:id="@+id/etInstructions"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:hint="如：饭前、饭后、空腹"
+            android:background="#F3F4F6" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="开始日期"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp" />
+        <EditText
+            android:id="@+id/etStartDate"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:hint="开始服用日期"
+            android:background="#F3F4F6" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="结束日期"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp" />
+        <EditText
+            android:id="@+id/etEndDate"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:hint="结束服用日期"
+            android:background="#F3F4F6" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="12dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="是否在用"
+                android:layout_gravity="center_vertical" />
+            <Switch
+                android:id="@+id/switchIsActive"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:checked="true" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="注意事项"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp" />
+        <EditText
+            android:id="@+id/etPrecautions"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:hint="输入用药注意事项"
+            android:gravity="top"
+            android:background="#F3F4F6" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="副作用"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp" />
+        <EditText
+            android:id="@+id/etSideEffects"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:hint="输入可能的副作用"
+            android:gravity="top"
+            android:background="#F3F4F6" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="禁忌症"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp" />
+        <EditText
+            android:id="@+id/etContraindications"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:hint="输入禁忌症状"
+            android:gravity="top"
+            android:background="#F3F4F6" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="作用机制"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp" />
+        <EditText
+            android:id="@+id/etMechanism"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:hint="输入药品作用机制"
+            android:gravity="top"
+            android:background="#F3F4F6" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="储存方式"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp" />
+        <EditText
+            android:id="@+id/etStorage"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:hint="如：阴凉干燥处保存"
+            android:background="#F3F4F6" />
+
+    </LinearLayout>
+</ScrollView>
