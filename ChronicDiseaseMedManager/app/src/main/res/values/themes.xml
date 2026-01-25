@@ -1,0 +1,8 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Base.Theme.ChronicDiseaseMedManager" parent="Theme.MaterialComponents.DayNight.NoActionBar.Bridge">
+        <item name="colorPrimary">#3B82F6</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="materialButtonStyle">@style/Widget.AppCompat.Button</item>
+    </style>
+    <style name="Theme.ChronicDiseaseMedManager" parent="Base.Theme.ChronicDiseaseMedManager" />
+</resources>

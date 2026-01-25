@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center_vertical"
+    android:background="#FFFFFF">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="新用户身份绑定"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:layout_gravity="center"
+        android:layout_marginBottom="40dp"/>
+
+    <EditText
+        android:id="@+id/etRealName"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:hint="真实姓名"
+        android:background="#F3F4F6"
+        android:padding="16dp"
+        android:layout_marginBottom="12dp"/>
+
+    <EditText
+        android:id="@+id/etIdCard"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:hint="身份证号 (18位)"
+        android:inputType="number"
+        android:background="#F3F4F6"
+        android:padding="16dp"
+        android:layout_marginBottom="32dp"/>
+
+    <Button
+        android:id="@+id/btnSubmitBind"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:backgroundTint="#3B82F6"
+        android:text="保存并进入系统"
+        android:textColor="#FFFFFF" />
+
+</LinearLayout>
