@@ -83,7 +83,7 @@ public class ArchiveFragment extends Fragment {
 
     private void initRetrofit() {
         apiService = new Retrofit.Builder()
-                .baseUrl("http://192.168.71.29:8080/") // 请确保IP与后端一致
+                .baseUrl("http://192.168.71.34:8080/") // 请确保IP与后端一致
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
                 .create(ApiService.class);
