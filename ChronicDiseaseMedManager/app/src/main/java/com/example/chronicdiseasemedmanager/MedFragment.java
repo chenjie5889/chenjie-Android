@@ -1,8 +1,13 @@
 package com.example.chronicdiseasemedmanager;
 
+import android.annotation.SuppressLint;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.app.TimePickerDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -23,9 +28,14 @@ import retrofit2.Callback;
 import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
+
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class MedFragment extends Fragment {
@@ -48,6 +58,7 @@ public class MedFragment extends Fragment {
     // 当前选中的Tab
     private boolean isDiseaseTab = true;
 
+    private AlarmManager alarmManager;
     private static final String TAG = "MedFragment";
 
     @Nullable
@@ -58,6 +69,7 @@ public class MedFragment extends Fragment {
         // 获取用户ID
         SharedPreferences sp = requireActivity().getSharedPreferences("user_info", Context.MODE_PRIVATE);
         currentUserId = sp.getLong("userId", -1L);
+        alarmManager = (AlarmManager) requireActivity().getSystemService(Context.ALARM_SERVICE);
 
         Log.d(TAG, "当前用户ID: " + currentUserId);
 
@@ -97,14 +109,43 @@ public class MedFragment extends Fragment {
         containerDiseaseList = view.findViewById(R.id.containerDiseaseList);
         containerMedicationList = view.findViewById(R.id.containerMedicationList);
 
+        Button btnTestReminder = view.findViewById(R.id.btnTestReminder);
+        btnTestReminder.setOnClickListener(v -> testReminder());
         // 设置初始Tab
         btnTabDiseases.setSelected(true);
     }
 
+    @SuppressLint("ScheduleExactAlarm")
+    private void testReminder() {
+        // 创建一个测试提醒（1分钟后）
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(Calendar.SECOND, 30);
+
+        Intent intent = new Intent(requireActivity(), MedicationReminderReceiver.class);
+        intent.putExtra("medicine_name", "测试药品");
+        intent.putExtra("dosage", "10mg");
+        intent.putExtra("time_label", "测试");
+        intent.putExtra("request_code", 9999);
+
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                requireActivity(),
+                9999,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        alarmManager.setExact(
+                AlarmManager.RTC_WAKEUP,
+                calendar.getTimeInMillis(),
+                pendingIntent
+        );
+
+        Toast.makeText(getContext(), "测试提醒已设置，1分钟后显示", Toast.LENGTH_SHORT).show();
+    }
     private void initRetrofit() {
         try {
             apiService = new Retrofit.Builder()
-                    .baseUrl("http://192.168.71.29:8080/")
+                    .baseUrl("http://192.168.71.34:8080/")
                     .addConverterFactory(GsonConverterFactory.create())
                     .build()
                     .create(ApiService.class);
@@ -203,10 +244,9 @@ public class MedFragment extends Fragment {
                     refreshMedicationListUI();
                     Log.d(TAG, "用药数据加载成功，数量: " + medicationList.size());
 
-                    // 调试：打印用药数据
-                    for (Medication med : medicationList) {
-                        Log.d(TAG, "药品: " + med.medicineName + ", ID: " + med.id);
-                    }
+                    // 新增：设置提醒（每次加载数据都重新设置）
+                    setupAllMedicationReminders();
+
                 } else {
                     Log.e(TAG, "用药数据响应失败: " + response.code() + " - " + response.message());
                     Toast.makeText(getContext(), "加载用药信息失败: " + response.code(), Toast.LENGTH_SHORT).show();
@@ -1080,8 +1120,21 @@ public class MedFragment extends Fragment {
                             Log.d(TAG, "更新用药结果: " + response.body().code + " - " + response.body().msg);
                             if (response.body().code == 200) {
                                 Toast.makeText(getContext(), "更新成功", Toast.LENGTH_SHORT).show();
+
+                                // 先取消旧的提醒
+                                if (medication.id != null) {
+                                    cancelMedicationReminders(medication.id);
+                                }
+
+                                // 重新加载用药列表
                                 loadMedications();
                                 loadMedStats();
+
+                                // 新增：为更新的药品重新设置提醒
+                                if (newMedication.isActive) {
+                                    setupMedicationReminders(newMedication);
+                                    Toast.makeText(getContext(), "用药提醒已更新", Toast.LENGTH_SHORT).show();
+                                }
                             } else {
                                 Toast.makeText(getContext(), "更新失败: " + response.body().msg, Toast.LENGTH_SHORT).show();
                             }
@@ -1105,8 +1158,16 @@ public class MedFragment extends Fragment {
                             Log.d(TAG, "添加用药结果: " + response.body().code + " - " + response.body().msg);
                             if (response.body().code == 200) {
                                 Toast.makeText(getContext(), "添加成功", Toast.LENGTH_SHORT).show();
+
+                                // 重新加载用药列表
                                 loadMedications();
                                 loadMedStats();
+
+                                // 新增：为新添加的药品设置提醒
+                                if (newMedication.isActive) {
+                                    setupMedicationReminders(newMedication);
+                                    Toast.makeText(getContext(), "用药提醒已设置", Toast.LENGTH_SHORT).show();
+                                }
                             } else {
                                 Toast.makeText(getContext(), "添加失败: " + response.body().msg, Toast.LENGTH_SHORT).show();
                             }
@@ -1138,6 +1199,7 @@ public class MedFragment extends Fragment {
                 if (response.isSuccessful() && response.body() != null) {
                     if (response.body().code == 200) {
                         Toast.makeText(getContext(), "删除成功", Toast.LENGTH_SHORT).show();
+                        cancelMedicationReminders(medicationId);
                         loadMedications();
                         loadMedStats();
                     } else {
@@ -1237,4 +1299,176 @@ public class MedFragment extends Fragment {
             timePickerDialog.show();
         });
     }
+
+    private void setupAllMedicationReminders() {
+        // 取消所有现有提醒
+        cancelAllReminders();
+
+        // 为每个有效用药设置提醒
+        for (Medication medication : medicationList) {
+            if (medication.isActive != null && medication.isActive) {
+                setupMedicationReminders(medication);
+            }
+        }
+    }
+
+    // 新增方法：设置单个药品的提醒
+    private void setupMedicationReminders(Medication medication) {
+        if (medication.id == null) return;
+
+        // 早上提醒
+        if (medication.takeTimeMorning != null && !medication.takeTimeMorning.isEmpty()) {
+            setReminder(medication, medication.takeTimeMorning, "早上", (int) (medication.id * 10 + 1));
+        }
+
+        // 中午提醒
+        if (medication.takeTimeNoon != null && !medication.takeTimeNoon.isEmpty()) {
+            setReminder(medication, medication.takeTimeNoon, "中午", (int) (medication.id * 10 + 2));
+        }
+
+        // 晚上提醒
+        if (medication.takeTimeEvening != null && !medication.takeTimeEvening.isEmpty()) {
+            setReminder(medication, medication.takeTimeEvening, "晚上", (int) (medication.id * 10 + 3));
+        }
+
+        // 睡前提醒
+        if (medication.takeTimeNight != null && !medication.takeTimeNight.isEmpty()) {
+            setReminder(medication, medication.takeTimeNight, "睡前", (int) (medication.id * 10 + 4));
+        }
+    }
+
+    // 新增方法：设置具体时间的提醒
+    @SuppressLint("ScheduleExactAlarm")
+    private void setReminder(Medication medication, String timeStr, String timeLabel, int requestCode) {
+        try {
+            // 1. 解析时间
+            String[] parts = timeStr.split(":");
+            int hour = Integer.parseInt(parts[0]);
+            int minute = Integer.parseInt(parts[1]);
+
+            // 2. 准备 Intent
+            Intent intent = new Intent(requireActivity(), MedicationReminderReceiver.class);
+            intent.putExtra("medicine_name", medication.medicineName);
+            intent.putExtra("dosage", medication.dosage);
+            intent.putExtra("time_label", timeLabel);
+            intent.putExtra("request_code", requestCode);
+
+            // --- 新增：传递时间信息，以便Receiver即使在后台也能重新设置明天的闹钟（如果需要实现自动重复）---
+            intent.putExtra("hour", hour);
+            intent.putExtra("minute", minute);
+            intent.putExtra("medication_id", medication.id);
+
+            PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                    requireActivity(),
+                    requestCode,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+
+            // 3. 设置日历时间
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTimeInMillis(System.currentTimeMillis());
+            calendar.set(Calendar.HOUR_OF_DAY, hour);
+            calendar.set(Calendar.MINUTE, minute);
+            calendar.set(Calendar.SECOND, 0);
+            calendar.set(Calendar.MILLISECOND, 0);
+
+            // 如果时间已过，设置为明天
+            if (calendar.getTimeInMillis() <= System.currentTimeMillis()) {
+                calendar.add(Calendar.DAY_OF_YEAR, 1);
+            }
+
+            // 4. --- 关键修改：使用精确闹钟 ---
+
+            // 检查权限 (Android 12+ 需要 SCHEDULE_EXACT_ALARM 权限)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (!alarmManager.canScheduleExactAlarms()) {
+                    Log.e(TAG, "没有精确闹钟权限");
+                    // 实际开发中应该弹窗引导用户去设置页面开启权限
+                    // Intent intent = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
+                    // startActivity(intent);
+                    return;
+                }
+            }
+
+            // 使用 setExactAndAllowWhileIdle (即使在低电量模式也能唤醒)
+            alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    calendar.getTimeInMillis(),
+                    pendingIntent
+            );
+
+            Log.d(TAG, "精确提醒已设置：" + medication.medicineName + " " + timeLabel + " " + timeStr +
+                    "，触发时间：" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                    .format(new Date(calendar.getTimeInMillis())));
+
+        } catch (Exception e) {
+            Log.e(TAG, "设置提醒失败：" + e.getMessage(), e);
+        }
+    }
+    // 新增方法：取消所有提醒
+    private void cancelAllReminders() {
+        for (Medication medication : medicationList) {
+            if (medication.id == null) continue;
+
+            int[] requestCodes = {
+                    (int)(medication.id * 10 + 1),
+                    (int)(medication.id * 10 + 2),
+                    (int)(medication.id * 10 + 3),
+                    (int)(medication.id * 10 + 4)
+            };
+
+            for (int code : requestCodes) {
+                Intent intent = new Intent(requireActivity(), MedicationReminderReceiver.class);
+                PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                        requireActivity(),
+                        code,
+                        intent,
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                );
+                alarmManager.cancel(pendingIntent);
+
+                // 取消重复提醒
+                Intent repeatIntent = new Intent(requireActivity(), MedicationReminderReceiver.class);
+                PendingIntent repeatPendingIntent = PendingIntent.getBroadcast(
+                        requireActivity(),
+                        code + 1000,
+                        repeatIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                );
+                alarmManager.cancel(repeatPendingIntent);
+            }
+        }
+    }
+
+    // 新增方法：取消特定药品的提醒
+    private void cancelMedicationReminders(Long medicationId) {
+        if (medicationId == null) return;
+
+        int[] requestCodes = {
+                (int)(medicationId * 10 + 1),
+                (int)(medicationId * 10 + 2),
+                (int)(medicationId * 10 + 3),
+                (int)(medicationId * 10 + 4)
+        };
+
+        for (int code : requestCodes) {
+            Intent intent = new Intent(requireActivity(), MedicationReminderReceiver.class);
+            PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                    requireActivity(),
+                    code,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+            alarmManager.cancel(pendingIntent);
+        }
+    }
+
+    // 在Fragment销毁时取消提醒
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        cancelAllReminders();
+    }
+
 }

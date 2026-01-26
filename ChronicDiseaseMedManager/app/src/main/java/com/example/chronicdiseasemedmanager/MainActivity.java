@@ -1,21 +1,44 @@
 package com.example.chronicdiseasemedmanager;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
+import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 public class MainActivity extends AppCompatActivity {
+
+    private ActivityResultLauncher<String> requestPermissionLauncher;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // 检查通知权限（Android 13+）
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+                    PackageManager.PERMISSION_GRANTED) {
+
+                requestPermissionLauncher = registerForActivityResult(
+                        new ActivityResultContracts.RequestPermission(),
+                        isGranted -> {
+                            if (!isGranted) {
+                                Toast.makeText(this, "需要通知权限才能接收用药提醒", Toast.LENGTH_LONG).show();
+                            }
+                        }
+                );
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
 
         BottomNavigationView nav = findViewById(R.id.bottom_nav);
 
@@ -33,8 +56,6 @@ public class MainActivity extends AppCompatActivity {
             else if (id == R.id.menu_med) frag = new MedFragment();
             else if (id == R.id.menu_family) frag = new FamilyFragment();
             else if (id == R.id.menu_set) frag = new SetFragment();
-
-
 
             if (frag != null) {
                 getSupportFragmentManager().beginTransaction()

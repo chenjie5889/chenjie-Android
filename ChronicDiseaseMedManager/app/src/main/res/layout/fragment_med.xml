@@ -207,6 +207,15 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />
 
+            <Button
+                android:id="@+id/btnTestReminder"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginBottom="12dp"
+                android:text="🔔 测试提醒"
+                android:backgroundTint="#FF9800"
+                android:textColor="#FFFFFF" />
+
         </LinearLayout>
     </ScrollView>
 
