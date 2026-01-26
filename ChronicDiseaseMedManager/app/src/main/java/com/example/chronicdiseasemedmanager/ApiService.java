@@ -117,6 +117,22 @@ public interface ApiService {
     @FormUrlEncoded
     @POST("api/sendChangePhoneCode")
     Call<SmsResponse> sendChangePhoneCode(@Field("phone") String phone);
+
+    @FormUrlEncoded
+    @POST("api/recordMedicationTaken")
+    Call<SmsResponse> recordMedicationTaken(
+            @Field("userId") Long userId,
+            @Field("medicineName") String medicineName,
+            @Field("date") String date,
+            @Field("time") String time,
+            @Field("status") Integer status
+    );
+
+    @GET("api/getTodayMedications")
+    Call<List<Medication>> getTodayMedications(@Query("userId") Long userId);
+
+
+
 }
 
 

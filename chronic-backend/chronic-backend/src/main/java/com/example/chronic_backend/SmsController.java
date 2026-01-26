@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,6 +24,8 @@ public class SmsController {
     @Autowired
     private MedLogRepository medLogRepository;
 
+    @Autowired
+    private MedicationRepository medicationRepository;
     private Map<String, String> codeMap = new ConcurrentHashMap<>();
 
     // --- 用户认证模块 ---
@@ -151,6 +154,67 @@ public class SmsController {
         return medLogRepository.findByUserId(userId);
     }
 
+    @PostMapping("/recordMedicationTaken")
+    public SmsResponse recordMedicationTaken(
+        @RequestParam Long userId,
+        @RequestParam String medicineName,
+        @RequestParam String date,
+        @RequestParam String time,
+        @RequestParam Integer status
+    ) {
+        try {
+            // 保存到 medication_logs 表
+            MedicationLog log = new MedicationLog();
+            log.setUserId(userId);
+            log.setLogDate(LocalDate.parse(date));
+            log.setStatus(status);
+            medLogRepository.save(log);
+            
+            return new SmsResponse(200, "服药记录保存成功", null);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new SmsResponse(500, "保存失败: " + e.getMessage(), null);
+        }
+    }
+
+    @GetMapping("/getTodayMedications")
+    public List<Medication> getTodayMedications(@RequestParam Long userId) {
+        // 获取用户今日有效的用药方案
+        LocalDate today = LocalDate.now();
+        String todayStr = today.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        
+        List<Medication> allMeds = medicationRepository.findByUserId(userId);
+        List<Medication> todayMeds = new ArrayList<>();
+        
+        for (Medication med : allMeds) {
+            if (Boolean.TRUE.equals(med.getIsActive())) {
+                // 检查开始日期和结束日期
+                boolean isActive = true;
+                
+                if (med.getStartDate() != null) {
+                    LocalDate startDate = LocalDate.parse(med.getStartDate());
+                    if (today.isBefore(startDate)) {
+                        isActive = false;
+                    }
+                }
+                
+                if (med.getEndDate() != null) {
+                    LocalDate endDate = LocalDate.parse(med.getEndDate());
+                    if (today.isAfter(endDate)) {
+                        isActive = false;
+                    }
+                }
+                
+                if (isActive) {
+                    todayMeds.add(med);
+                }
+            }
+        }
+        
+        return todayMeds;
+    }
+
+    
 
     @PostMapping("/updateUserInfo")
     public SmsResponse updateUserInfo(@RequestBody UpdateUserInfoRequest request) {
@@ -348,6 +412,7 @@ public class SmsController {
             return new UserInfoResponse();
         }
     }
+    
     @lombok.Data
     public static class UpdateUserInfoRequest {
         private Long userId;

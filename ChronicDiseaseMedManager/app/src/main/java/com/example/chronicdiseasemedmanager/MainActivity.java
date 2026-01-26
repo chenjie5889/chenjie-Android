@@ -1,6 +1,7 @@
 package com.example.chronicdiseasemedmanager;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -40,7 +41,27 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+        // 检查精确闹钟权限（Android 12+）
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.SCHEDULE_EXACT_ALARM) !=
+                    PackageManager.PERMISSION_GRANTED) {
+
+                ActivityResultLauncher<String> alarmPermissionLauncher = registerForActivityResult(
+                        new ActivityResultContracts.RequestPermission(),
+                        isGranted -> {
+                            if (!isGranted) {
+                                Toast.makeText(this, "需要精确闹钟权限才能准时提醒", Toast.LENGTH_LONG).show();
+                            }
+                        }
+                );
+                alarmPermissionLauncher.launch(Manifest.permission.SCHEDULE_EXACT_ALARM);
+            }
+        }
+
         BottomNavigationView nav = findViewById(R.id.bottom_nav);
+
+        // 检查是否有通知跳转
+        handleNotificationIntent();
 
         // 初始页面
         if (savedInstanceState == null) {
@@ -64,5 +85,22 @@ public class MainActivity extends AppCompatActivity {
             }
             return false;
         });
+    }
+
+    private void handleNotificationIntent() {
+        if (getIntent() != null && getIntent().hasExtra("open_med_fragment")) {
+            // 从通知跳转过来，自动选择首页
+            BottomNavigationView nav = findViewById(R.id.bottom_nav);
+            nav.setSelectedItemId(R.id.menu_home);
+
+            // 数据会通过Intent传递给HomeFragment
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleNotificationIntent();
     }
 }
