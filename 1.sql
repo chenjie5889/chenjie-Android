@@ -35,18 +35,6 @@ CREATE TABLE `health_archives` (
   FOREIGN KEY (`user_id`) REFERENCES users(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 4. 用药打卡记录表（增加用户外键约束）
-DROP TABLE IF EXISTS `medication_logs`;
-CREATE TABLE `medication_logs` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `user_id` BIGINT NOT NULL,
-  `log_date` DATE NOT NULL COMMENT '打卡日期',
-  `status` INT COMMENT '0:漏服(红), 1:按时(蓝)',
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY `uk_user_date` (`user_id`, `log_date`),
-  FOREIGN KEY (`user_id`) REFERENCES users(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 -- 删除旧表并重新创建
 DROP TABLE IF EXISTS `diseases`;
 CREATE TABLE `diseases` (
@@ -92,6 +80,20 @@ CREATE TABLE `medications` (
   INDEX idx_disease_id (disease_id),
   FOREIGN KEY (disease_id) REFERENCES diseases(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+DROP TABLE IF EXISTS `medication_logs`;
+CREATE TABLE `medication_logs` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT NOT NULL,
+  `medicine_name` VARCHAR(100) COMMENT '药品名称',
+  `take_time` VARCHAR(10) COMMENT '服药时间（HH:mm）',
+  `log_date` DATE NOT NULL COMMENT '打卡日期',
+  `status` INT COMMENT '0:漏服(红), 1:按时(蓝)',
+  `created_at` DATE DEFAULT (CURRENT_DATE) COMMENT '记录创建日期',
+  UNIQUE KEY `uk_user_date_medicine` (`user_id`, `log_date`, `medicine_name`),
+  FOREIGN KEY (`user_id`) REFERENCES users(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- 家属关系表
 CREATE TABLE IF NOT EXISTS family_relationships (
     id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -135,10 +137,3 @@ INSERT INTO `health_archives` (user_id, gender, birthday, height, weight, medica
 (1, '男', '1990-01-01', 175.5, 70.0, '高血压病史5年，需每日服药'),
 (2, '女', '1990-02-02', 165.0, 55.0, '糖尿病病史3年，需控制饮食');
 
--- 插入测试用药记录
-INSERT INTO `medication_logs` (user_id, log_date, status) VALUES
-(1, '2024-01-01', 1),
-(1, '2024-01-02', 1),
-(1, '2024-01-03', 0),
-(2, '2024-01-01', 1),
-(2, '2024-01-02', 1);

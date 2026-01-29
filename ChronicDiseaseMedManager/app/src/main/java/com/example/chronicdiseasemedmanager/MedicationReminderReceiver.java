@@ -17,10 +17,21 @@ import android.widget.Toast;
 
 import androidx.core.app.NotificationCompat;
 
+import com.google.gson.annotations.SerializedName;
+
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+import retrofit2.http.Field;
+import retrofit2.http.FormUrlEncoded;
+import retrofit2.http.POST;
 
 public class MedicationReminderReceiver extends BroadcastReceiver {
     private static final String TAG = "MedReminderReceiver";
@@ -33,6 +44,33 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
     private static final int REMINDER_TYPE_FIRST = 1;    // 第一次提醒
     private static final int REMINDER_TYPE_SECOND = 2;   // 第二次提醒
     private static final int REMINDER_TYPE_LATER = 3;    // 稍后提醒
+
+    // 在广播接收器中定义独立的响应类
+    public static class SmsResponse {
+        @SerializedName("code")
+        public int code;
+
+        @SerializedName("msg")
+        public String msg;
+
+        @SerializedName("data")
+        public String data;
+
+        public SmsResponse() {}
+    }
+
+    // 在广播接收器中定义独立的API接口
+    public interface LocalApiService {
+        @FormUrlEncoded
+        @POST("api/recordMedicationTaken")
+        Call<SmsResponse> recordMedicationTaken(
+                @Field("userId") Long userId,
+                @Field("medicineName") String medicineName,
+                @Field("date") String date,
+                @Field("time") String time,
+                @Field("status") Integer status
+        );
+    }
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -86,6 +124,110 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
             // 稍后提醒（立即显示）
             showNotification(context, medicineName, dosage, "稍后提醒", requestCode, false);
             Toast.makeText(context, "稍后提醒：" + medicineName + " 请及时服药！", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /**
+     * 处理"已服药"操作 - 修改后版本
+     */
+    private void handleMedicationTaken(Context context, Intent intent) {
+        String medicineName = intent.getStringExtra("medicine_name");
+        int requestCode = intent.getIntExtra("request_code", 0);
+        String dosage = intent.getStringExtra("dosage");
+
+        Log.d(TAG, "用户点击已服药：" + medicineName + "，剂量：" + dosage);
+
+        // 1. 调用API保存服药记录
+        callApiRecordMedication(context, medicineName, dosage, requestCode);
+
+        // 2. 取消所有相关提醒
+        cancelAllRelatedReminders(context, requestCode);
+
+        // 3. 通知需要更新
+        NotificationManager notificationManager =
+                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationManager.cancel(requestCode);
+    }
+
+    /**
+     * 新增方法：调用API保存服药记录
+     */
+    private void callApiRecordMedication(Context context, String medicineName, String dosage, int requestCode) {
+        try {
+            // 1. 获取当前用户ID
+            SharedPreferences sp = context.getSharedPreferences("user_info", Context.MODE_PRIVATE);
+            Long userId = sp.getLong("userId", -1L);
+
+            if (userId == -1L) {
+                Log.e(TAG, "用户未登录，无法保存记录");
+                Toast.makeText(context, "请先登录应用", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // 2. 获取当前日期和时间
+            SimpleDateFormat dateSdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+            SimpleDateFormat timeSdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
+            String today = dateSdf.format(new java.util.Date());
+            String currentTime = timeSdf.format(new java.util.Date());
+
+            // 3. 初始化Retrofit
+            Retrofit retrofit = new Retrofit.Builder()
+                    .baseUrl("http://192.168.71.34:8080/")
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build();
+
+            // 4. 创建API服务
+            LocalApiService apiService = retrofit.create(LocalApiService.class);
+
+            // 5. 调用API
+            Call<SmsResponse> call = apiService.recordMedicationTaken(
+                    userId,
+                    medicineName,
+                    today,
+                    currentTime,
+                    1  // 状态：按时服药
+            );
+
+            call.enqueue(new Callback<SmsResponse>() {
+                @Override
+                public void onResponse(Call<SmsResponse> call, Response<SmsResponse> response) {
+                    handleApiResponse(context, response, medicineName);
+                }
+
+                @Override
+                public void onFailure(Call<SmsResponse> call, Throwable t) {
+                    Log.e(TAG, "保存服药记录失败: " + t.getMessage());
+                    Toast.makeText(context, "网络错误，请稍后重试", Toast.LENGTH_SHORT).show();
+                }
+            });
+
+        } catch (Exception e) {
+            Log.e(TAG, "调用API保存记录异常: " + e.getMessage());
+            Toast.makeText(context, "保存失败，请稍后重试", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * 新增方法：处理API响应
+     */
+    private void handleApiResponse(Context context, Response<SmsResponse> response, String medicineName) {
+        if (response.isSuccessful() && response.body() != null) {
+            SmsResponse smsResponse = response.body();
+            if (smsResponse.code == 200) {
+                Log.d(TAG, "服药记录保存到云端成功: " + medicineName);
+                Toast.makeText(context, medicineName + " 服药记录已保存", Toast.LENGTH_SHORT).show();
+
+                // 可选：发送广播通知其他组件更新UI
+                Intent updateIntent = new Intent("MEDICATION_RECORD_UPDATED");
+                context.sendBroadcast(updateIntent);
+
+            } else {
+                Log.e(TAG, "保存失败: " + smsResponse.msg);
+                Toast.makeText(context, "保存失败: " + smsResponse.msg, Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            Log.e(TAG, "API响应失败: " + response.code());
+            Toast.makeText(context, "保存失败，请检查网络", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -187,27 +329,6 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
         );
 
         Log.d(TAG, "已设置2分钟后第二次提醒: " + medicineName);
-    }
-
-    /**
-     * 处理"已服药"操作
-     */
-    private void handleMedicationTaken(Context context, Intent intent) {
-        String medicineName = intent.getStringExtra("medicine_name");
-        int requestCode = intent.getIntExtra("request_code", 0);
-
-        Log.d(TAG, "用户点击已服药：" + medicineName);
-
-        // 1. 取消所有相关提醒
-        cancelAllRelatedReminders(context, requestCode);
-
-        // 2. 显示确认
-        Toast.makeText(context, medicineName + " 服药记录已保存", Toast.LENGTH_SHORT).show();
-
-        // 3. 通知需要更新
-        NotificationManager notificationManager =
-                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        notificationManager.cancel(requestCode);
     }
 
     /**
@@ -337,6 +458,7 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
         Intent takenIntent = new Intent(context, MedicationReminderReceiver.class);
         takenIntent.setAction(ACTION_MEDICATION_TAKEN);
         takenIntent.putExtra("medicine_name", medicineName);
+        takenIntent.putExtra("dosage", dosage); // 增加传递剂量信息
         takenIntent.putExtra("request_code", requestCode);
 
         PendingIntent takenPendingIntent = PendingIntent.getBroadcast(

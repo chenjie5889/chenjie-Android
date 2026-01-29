@@ -128,14 +128,23 @@ public interface ApiService {
             @Field("status") Integer status
     );
 
+
     @GET("api/getTodayMedications")
     Call<List<Medication>> getTodayMedications(@Query("userId") Long userId);
 
-
+    @GET("api/getTodayMedicationLogs")
+    Call<List<MedicationLogResponse>> getTodayMedicationLogs(@Query("userId") Long userId);
 
 }
 
+class MedicationLogResponse {
+    public String medicineName;
+    public String takeTime;
+    public Integer status;
+    public String logDate;
 
+    public MedicationLogResponse() {}
+}
 // --- 数据模型类 ---
 class ArchivePlusResponse {
     public Archive archive;

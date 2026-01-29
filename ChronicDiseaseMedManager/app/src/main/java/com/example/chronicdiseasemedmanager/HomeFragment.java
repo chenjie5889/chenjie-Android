@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -31,7 +32,9 @@ public class HomeFragment extends Fragment {
     private ApiService apiService;
     private Long currentUserId;
     private LinearLayout medicationContainer;
+    private LinearLayout medicationLogContainer;
     private TextView tvNoMedication;
+    private TextView tvNoLogs;
 
     // 存储当前的用药提醒信息（从Intent传递）
     private String currentMedicineName = "";
@@ -45,6 +48,7 @@ public class HomeFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
         calendarView = view.findViewById(R.id.mainCalendar);
         medicationContainer = view.findViewById(R.id.rvTodayMeds);
+        medicationLogContainer = view.findViewById(R.id.rvTodayMedLogs);
         tvNoMedication = new TextView(getContext());
 
         // 检查是否从通知跳转过来
@@ -58,6 +62,7 @@ public class HomeFragment extends Fragment {
 
         if (currentUserId != -1L) {
             loadTodayMedications();
+            loadTodayMedicationLogs();
             loadMedicationStatus();
         } else {
             Toast.makeText(getContext(), "请先登录", Toast.LENGTH_SHORT).show();
@@ -108,33 +113,185 @@ public class HomeFragment extends Fragment {
         builder.show();
     }
 
-    private void recordMedicationTaken() {
-        // 获取当前日期
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-        String today = sdf.format(new Date());
+    private void loadTodayMedicationLogs() {
+        if (medicationLogContainer == null || apiService == null) return;
 
-        // 这里应该调用API记录服药到数据库
-        // 由于缺少对应的API接口，这里先模拟记录到本地
-        recordMedicationToLocal(currentMedicineName, today);
+        // 清除现有视图
+        medicationLogContainer.removeAllViews();
 
-        // 也可以显示在界面上
-        updateMedicationStatusDisplay();
+        // 显示标题
+        TextView tvTitle = new TextView(getContext());
+        tvTitle.setText("今日服药记录");
+        tvTitle.setTextSize(18);
+        tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        tvTitle.setPadding(16, 16, 16, 8);
+        tvTitle.setTextColor(0xFF1F2937);
+        medicationLogContainer.addView(tvTitle);
 
-        // 清除提醒
-        if (currentRequestCode != 0) {
-            cancelCurrentReminder();
-        }
+        apiService.getTodayMedicationLogs(currentUserId).enqueue(new Callback<List<MedicationLogResponse>>() {
+            @Override
+            public void onResponse(Call<List<MedicationLogResponse>> call, Response<List<MedicationLogResponse>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<MedicationLogResponse> logs = response.body();
+
+                    if (logs.isEmpty()) {
+                        showNoLogsMessage();
+                    } else {
+                        // 按时间排序（最近的在前）
+                        Collections.sort(logs, (log1, log2) -> {
+                            try {
+                                SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
+                                Date time1 = log1.takeTime != null ? sdf.parse(log1.takeTime) : new Date(0);
+                                Date time2 = log2.takeTime != null ? sdf.parse(log2.takeTime) : new Date(0);
+                                return time2.compareTo(time1); // 降序
+                            } catch (Exception e) {
+                                return 0;
+                            }
+                        });
+
+                        for (MedicationLogResponse log : logs) {
+                            View logCard = createMedicationLogCard(log);
+                            medicationLogContainer.addView(logCard);
+                        }
+                    }
+                } else {
+                    showNoLogsMessage();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<MedicationLogResponse>> call, Throwable t) {
+                Log.e("HomeFragment", "获取用药记录失败: " + t.getMessage());
+                showNoLogsMessage();
+            }
+        });
     }
 
-    private void recordMedicationToLocal(String medicineName, String date) {
-        // 临时保存到SharedPreferences，实际应调用API保存到服务器
-        SharedPreferences sp = getActivity().getSharedPreferences("medication_logs", getActivity().MODE_PRIVATE);
-        SharedPreferences.Editor editor = sp.edit();
+    private View createMedicationLogCard(MedicationLogResponse log) {
+        LinearLayout card = new LinearLayout(getContext());
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(16, 12, 16, 12);
+        card.setBackgroundResource(R.drawable.log_card_bg);
 
-        String key = "med_" + date + "_" + medicineName.hashCode();
-        editor.putBoolean(key, true);
-        editor.putString(key + "_time", new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date()));
-        editor.apply();
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(8, 4, 8, 4);
+        card.setLayoutParams(params);
+
+        // 药品名称和时间
+        LinearLayout nameTimeLayout = new LinearLayout(getContext());
+        nameTimeLayout.setOrientation(LinearLayout.HORIZONTAL);
+
+        TextView tvMedicineName = new TextView(getContext());
+        tvMedicineName.setText(log.medicineName != null ? log.medicineName : "未知药品");
+        tvMedicineName.setTextSize(16);
+        tvMedicineName.setTextColor(0xFF1F2937);
+        LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        tvMedicineName.setLayoutParams(nameParams);
+
+        TextView tvTime = new TextView(getContext());
+        tvTime.setText(log.takeTime != null ? log.takeTime : "未知时间");
+        tvTime.setTextSize(14);
+        tvTime.setTextColor(0xFF6B7280);
+
+        nameTimeLayout.addView(tvMedicineName);
+        nameTimeLayout.addView(tvTime);
+
+        // 状态和日期
+        LinearLayout statusDateLayout = new LinearLayout(getContext());
+        statusDateLayout.setOrientation(LinearLayout.HORIZONTAL);
+        statusDateLayout.setPadding(0, 8, 0, 0);
+
+        TextView tvStatus = new TextView(getContext());
+        if (log.status != null) {
+            if (log.status == 1) {
+                tvStatus.setText("✅ 按时服药");
+                tvStatus.setTextColor(0xFF10B981);
+            } else {
+                tvStatus.setText("⚠️ 漏服");
+                tvStatus.setTextColor(0xFFEF4444);
+            }
+        } else {
+            tvStatus.setText("状态未知");
+            tvStatus.setTextColor(0xFF6B7280);
+        }
+        tvStatus.setTextSize(14);
+        LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        tvStatus.setLayoutParams(statusParams);
+
+        TextView tvDate = new TextView(getContext());
+        tvDate.setText(log.logDate != null ? log.logDate : "");
+        tvDate.setTextSize(12);
+        tvDate.setTextColor(0xFF9CA3AF);
+
+        statusDateLayout.addView(tvStatus);
+        statusDateLayout.addView(tvDate);
+
+        card.addView(nameTimeLayout);
+        card.addView(statusDateLayout);
+
+        return card;
+    }
+
+    private void showNoLogsMessage() {
+        TextView tvEmpty = new TextView(getContext());
+        tvEmpty.setText("今日暂无服药记录");
+        tvEmpty.setTextSize(14);
+        tvEmpty.setTextColor(0xFF6B7280);
+        tvEmpty.setPadding(16, 32, 16, 32);
+        tvEmpty.setGravity(Gravity.CENTER);
+        medicationLogContainer.addView(tvEmpty);
+    }
+
+    private void recordMedicationTaken() {
+        // 获取当前日期和时间
+        SimpleDateFormat dateSdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        SimpleDateFormat timeSdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
+        String today = dateSdf.format(new Date());
+        String currentTime = timeSdf.format(new Date());
+
+        // 调用API记录服药到数据库
+        apiService.recordMedicationTaken(
+                currentUserId,
+                currentMedicineName,
+                today,
+                currentTime,
+                1  // 状态：按时服药
+        ).enqueue(new Callback<SmsResponse>() {
+            @Override
+            public void onResponse(Call<SmsResponse> call, Response<SmsResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    SmsResponse smsResponse = response.body();
+                    if (smsResponse.code == 200) {
+                        Toast.makeText(getContext(), "服药记录已保存到云端", Toast.LENGTH_SHORT).show();
+
+                        // 刷新今日用药记录
+                        loadTodayMedicationLogs();
+
+                        // 更新日历显示
+                        loadMedicationStatus();
+
+                        // 清除提醒
+                        if (currentRequestCode != 0) {
+                            cancelCurrentReminder();
+                        }
+                    } else {
+                        Toast.makeText(getContext(), "保存失败: " + smsResponse.msg, Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(getContext(), "保存失败，请检查网络", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<SmsResponse> call, Throwable t) {
+                Toast.makeText(getContext(), "网络错误: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void scheduleReminderIn5Minutes() {
@@ -329,25 +486,110 @@ public class HomeFragment extends Fragment {
     }
 
     private void recordSingleMedication(Medication medication) {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-        String today = sdf.format(new Date());
+        SimpleDateFormat dateSdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        SimpleDateFormat timeSdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
+        String today = dateSdf.format(new Date());
+        String currentTime = timeSdf.format(new Date());
 
-        recordMedicationToLocal(medication.medicineName, today);
-        Toast.makeText(getContext(), medication.medicineName + " 服药记录已保存", Toast.LENGTH_SHORT).show();
+        apiService.recordMedicationTaken(
+                currentUserId,
+                medication.medicineName,
+                today,
+                currentTime,
+                1  // 状态：按时服药
+        ).enqueue(new Callback<SmsResponse>() {
+            @Override
+            public void onResponse(Call<SmsResponse> call, Response<SmsResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    SmsResponse smsResponse = response.body();
+                    if (smsResponse.code == 200) {
+                        Toast.makeText(getContext(), medication.medicineName + " 服药记录已保存到云端", Toast.LENGTH_SHORT).show();
+                        loadTodayMedicationLogs();
+                    } else {
+                        Toast.makeText(getContext(), "保存失败: " + smsResponse.msg, Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<SmsResponse> call, Throwable t) {
+                Toast.makeText(getContext(), "网络错误", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void recordAllMedications(List<Medication> medications) {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-        String today = sdf.format(new Date());
+        if (medications.isEmpty()) return;
 
-        for (Medication med : medications) {
-            recordMedicationToLocal(med.medicineName, today);
+        SimpleDateFormat dateSdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        SimpleDateFormat timeSdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
+        String today = dateSdf.format(new Date());
+        String currentTime = timeSdf.format(new Date());
+
+        // 创建计数器对象
+        class RequestCounter {
+            int success = 0;
+            int completed = 0;
+            int total = medications.size();
+
+            synchronized void incrementSuccess() {
+                success++;
+                completed++;
+                checkCompletion();
+            }
+
+            synchronized void incrementCompleted() {
+                completed++;
+                checkCompletion();
+            }
+
+            private void checkCompletion() {
+                if (completed == total) {
+                    getActivity().runOnUiThread(() -> {
+                        int failed = total - success;
+                        String message;
+                        if (failed == 0) {
+                            message = "已成功保存 " + success + " 种药品的服药记录到云端";
+                        } else {
+                            message = "保存完成：" + success + " 种成功，" + failed + " 种失败";
+                        }
+
+                        Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+                        loadTodayMedicationLogs();
+                    });
+                }
+            }
         }
 
-        Toast.makeText(getContext(), "已记录 " + medications.size() + " 种药品的服药记录", Toast.LENGTH_SHORT).show();
+        final RequestCounter counter = new RequestCounter();
 
-        // 刷新显示
-        loadTodayMedications();
+        for (Medication med : medications) {
+            apiService.recordMedicationTaken(
+                    currentUserId,
+                    med.medicineName,
+                    today,
+                    currentTime,
+                    1
+            ).enqueue(new Callback<SmsResponse>() {
+                @Override
+                public void onResponse(Call<SmsResponse> call, Response<SmsResponse> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        if (response.body().code == 200) {
+                            counter.incrementSuccess();
+                        } else {
+                            counter.incrementCompleted();
+                        }
+                    } else {
+                        counter.incrementCompleted();
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<SmsResponse> call, Throwable t) {
+                    counter.incrementCompleted();
+                }
+            });
+        }
     }
 
     private void loadMedicationStatus() {
@@ -385,10 +627,27 @@ public class HomeFragment extends Fragment {
         // 暂时留空
     }
 
+    /**
+     * 新增方法：同步用药数据
+     * 当从通知进入应用时，确保数据是最新的
+     */
+    private void syncMedicationData() {
+        // 当用户从通知进入时，自动刷新数据
+        if (isFromNotification && currentUserId != -1L) {
+            // 延迟刷新，确保API调用完成
+            new android.os.Handler().postDelayed(() -> {
+                loadTodayMedicationLogs();
+                loadMedicationStatus();
+            }, 1000);
+        }
+    }
+
     @Override
     public void onResume() {
         super.onResume();
         // 每次回到页面都检查是否有通知跳转
         checkIntentFromNotification();
+        // 新增：同步数据
+        syncMedicationData();
     }
 }

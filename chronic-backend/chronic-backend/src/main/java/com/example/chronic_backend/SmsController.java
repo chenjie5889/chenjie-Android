@@ -154,28 +154,84 @@ public class SmsController {
         return medLogRepository.findByUserId(userId);
     }
 
-    @PostMapping("/recordMedicationTaken")
-    public SmsResponse recordMedicationTaken(
-        @RequestParam Long userId,
-        @RequestParam String medicineName,
-        @RequestParam String date,
-        @RequestParam String time,
-        @RequestParam Integer status
-    ) {
-        try {
-            // 保存到 medication_logs 表
-            MedicationLog log = new MedicationLog();
-            log.setUserId(userId);
-            log.setLogDate(LocalDate.parse(date));
-            log.setStatus(status);
-            medLogRepository.save(log);
-            
-            return new SmsResponse(200, "服药记录保存成功", null);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new SmsResponse(500, "保存失败: " + e.getMessage(), null);
-        }
+@PostMapping("/recordMedicationTaken")
+public SmsResponse recordMedicationTaken(
+    @RequestParam Long userId,
+    @RequestParam String medicineName,
+    @RequestParam String date,
+    @RequestParam String time,
+    @RequestParam Integer status
+) {
+    try {
+        // 1. 保存到 medication_logs 表
+        MedicationLog log = new MedicationLog();
+        log.setUserId(userId);
+        log.setLogDate(LocalDate.parse(date));
+        log.setStatus(status);
+        log.setMedicineName(medicineName);  // 新增字段
+        log.setTakeTime(time);  // 新增字段
+        medLogRepository.save(log);
+        
+        // 2. 记录详细的用药日志
+        saveMedicationDetailLog(userId, medicineName, date, time, status);
+        
+        return new SmsResponse(200, "服药记录保存成功", null);
+    } catch (Exception e) {
+        e.printStackTrace();
+        return new SmsResponse(500, "保存失败: " + e.getMessage(), null);
     }
+}
+
+// 新增方法：保存详细用药记录
+private void saveMedicationDetailLog(Long userId, String medicineName, 
+                                     String date, String time, Integer status) {
+    try {
+        // 这里可以创建更详细的日志表，暂时记录到控制台
+        System.out.println("详细用药记录 - 用户ID: " + userId + 
+                          ", 药品: " + medicineName + 
+                          ", 日期: " + date + 
+                          ", 时间: " + time + 
+                          ", 状态: " + (status == 1 ? "按时" : "漏服"));
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+
+// 新增方法：获取用户今日用药记录
+@GetMapping("/getTodayMedicationLogs")
+public List<MedicationLogResponse> getTodayMedicationLogs(@RequestParam Long userId) {
+    try {
+        LocalDate today = LocalDate.now();
+        String todayStr = today.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        
+        // 从数据库中获取今日用药记录
+        List<MedicationLog> logs = medLogRepository.findByUserIdAndLogDate(userId, today);
+        
+        List<MedicationLogResponse> responses = new ArrayList<>();
+        for (MedicationLog log : logs) {
+            MedicationLogResponse response = new MedicationLogResponse();
+            response.setMedicineName(log.getMedicineName());
+            response.setTakeTime(log.getTakeTime());
+            response.setStatus(log.getStatus());
+            response.setLogDate(log.getLogDate().toString());
+            responses.add(response);
+        }
+        
+        return responses;
+    } catch (Exception e) {
+        e.printStackTrace();
+        return new ArrayList<>();
+    }
+}
+
+// 新增响应类
+@lombok.Data
+public static class MedicationLogResponse {
+    private String medicineName;
+    private String takeTime;
+    private Integer status;
+    private String logDate;
+}
 
     @GetMapping("/getTodayMedications")
     public List<Medication> getTodayMedications(@RequestParam Long userId) {
