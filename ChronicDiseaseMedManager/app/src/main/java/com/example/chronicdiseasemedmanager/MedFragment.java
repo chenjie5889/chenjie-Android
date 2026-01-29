@@ -1337,7 +1337,6 @@ public class MedFragment extends Fragment {
         }
     }
 
-    // 新增方法：设置具体时间的提醒
     @SuppressLint("ScheduleExactAlarm")
     private void setReminder(Medication medication, String timeStr, String timeLabel, int requestCode) {
         try {
@@ -1346,17 +1345,18 @@ public class MedFragment extends Fragment {
             int hour = Integer.parseInt(parts[0]);
             int minute = Integer.parseInt(parts[1]);
 
-            // 2. 准备 Intent
+            // 2. 准备 Intent - 第一次提醒
             Intent intent = new Intent(requireActivity(), MedicationReminderReceiver.class);
             intent.putExtra("medicine_name", medication.medicineName);
             intent.putExtra("dosage", medication.dosage);
             intent.putExtra("time_label", timeLabel);
             intent.putExtra("request_code", requestCode);
+            intent.putExtra("reminder_type", 1);
 
-            // --- 新增：传递时间信息，以便Receiver即使在后台也能重新设置明天的闹钟（如果需要实现自动重复）---
+            // 关键：传递时间信息，用于自动重设
             intent.putExtra("hour", hour);
             intent.putExtra("minute", minute);
-            intent.putExtra("medication_id", medication.id);
+            intent.putExtra("medication_id", medication.id != null ? medication.id : 0L);
 
             PendingIntent pendingIntent = PendingIntent.getBroadcast(
                     requireActivity(),
@@ -1398,7 +1398,7 @@ public class MedFragment extends Fragment {
                     pendingIntent
             );
 
-            Log.d(TAG, "精确提醒已设置：" + medication.medicineName + " " + timeLabel + " " + timeStr +
+            Log.d(TAG, "第一次提醒已设置：" + medication.medicineName + " " + timeLabel + " " + timeStr +
                     "，触发时间：" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
                     .format(new Date(calendar.getTimeInMillis())));
 
@@ -1406,7 +1406,8 @@ public class MedFragment extends Fragment {
             Log.e(TAG, "设置提醒失败：" + e.getMessage(), e);
         }
     }
-    // 新增方法：取消所有提醒
+
+
     private void cancelAllReminders() {
         for (Medication medication : medicationList) {
             if (medication.id == null) continue;
@@ -1419,29 +1420,29 @@ public class MedFragment extends Fragment {
             };
 
             for (int code : requestCodes) {
-                Intent intent = new Intent(requireActivity(), MedicationReminderReceiver.class);
-                PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                // 取消第一次提醒
+                Intent firstIntent = new Intent(requireActivity(), MedicationReminderReceiver.class);
+                PendingIntent firstPendingIntent = PendingIntent.getBroadcast(
                         requireActivity(),
                         code,
-                        intent,
+                        firstIntent,
                         PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
                 );
-                alarmManager.cancel(pendingIntent);
+                alarmManager.cancel(firstPendingIntent);
 
-                // 取消重复提醒
-                Intent repeatIntent = new Intent(requireActivity(), MedicationReminderReceiver.class);
-                PendingIntent repeatPendingIntent = PendingIntent.getBroadcast(
+                // 取消第二次提醒
+                Intent secondIntent = new Intent(requireActivity(), MedicationReminderReceiver.class);
+                PendingIntent secondPendingIntent = PendingIntent.getBroadcast(
                         requireActivity(),
-                        code + 1000,
-                        repeatIntent,
+                        code + 2000,
+                        secondIntent,
                         PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
                 );
-                alarmManager.cancel(repeatPendingIntent);
+                alarmManager.cancel(secondPendingIntent);
             }
         }
     }
 
-    // 新增方法：取消特定药品的提醒
     private void cancelMedicationReminders(Long medicationId) {
         if (medicationId == null) return;
 
@@ -1453,17 +1454,27 @@ public class MedFragment extends Fragment {
         };
 
         for (int code : requestCodes) {
-            Intent intent = new Intent(requireActivity(), MedicationReminderReceiver.class);
-            PendingIntent pendingIntent = PendingIntent.getBroadcast(
+            // 取消第一次提醒
+            Intent firstIntent = new Intent(requireActivity(), MedicationReminderReceiver.class);
+            PendingIntent firstPendingIntent = PendingIntent.getBroadcast(
                     requireActivity(),
                     code,
-                    intent,
+                    firstIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
             );
-            alarmManager.cancel(pendingIntent);
+            alarmManager.cancel(firstPendingIntent);
+
+            // 取消第二次提醒
+            Intent secondIntent = new Intent(requireActivity(), MedicationReminderReceiver.class);
+            PendingIntent secondPendingIntent = PendingIntent.getBroadcast(
+                    requireActivity(),
+                    code + 2000,
+                    secondIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+            alarmManager.cancel(secondPendingIntent);
         }
     }
-
     // 在Fragment销毁时取消提醒
     @Override
     public void onDestroy() {

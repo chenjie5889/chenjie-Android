@@ -138,21 +138,22 @@ public class HomeFragment extends Fragment {
     }
 
     private void scheduleReminderIn5Minutes() {
-        // 设置5分钟后的提醒
+        // 修改为设置2分钟后的第二次提醒
         AlarmManager alarmManager = (AlarmManager) getActivity().getSystemService(Context.ALARM_SERVICE);
 
         Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.MINUTE, 5);
+        calendar.add(Calendar.MINUTE, 2); // 改为2分钟
 
         Intent intent = new Intent(getActivity(), MedicationReminderReceiver.class);
         intent.putExtra("medicine_name", currentMedicineName);
         intent.putExtra("dosage", currentDosage);
         intent.putExtra("time_label", "再次提醒");
-        intent.putExtra("request_code", currentRequestCode + 1000); // 不同的requestCode
+        intent.putExtra("request_code", currentRequestCode);
+        intent.putExtra("reminder_type", 2); // 第二次提醒
 
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 getActivity(),
-                currentRequestCode + 1000,
+                currentRequestCode + 2000, // 使用不同的requestCode
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
@@ -172,19 +173,32 @@ public class HomeFragment extends Fragment {
                     pendingIntent
             );
         }
+
+        Toast.makeText(getContext(), "2分钟后再次提醒", Toast.LENGTH_SHORT).show(); // 修改提示信息
     }
 
     private void cancelCurrentReminder() {
         AlarmManager alarmManager = (AlarmManager) getActivity().getSystemService(Context.ALARM_SERVICE);
 
-        Intent intent = new Intent(getActivity(), MedicationReminderReceiver.class);
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+        // 取消第一次提醒
+        Intent firstIntent = new Intent(getActivity(), MedicationReminderReceiver.class);
+        PendingIntent firstPendingIntent = PendingIntent.getBroadcast(
                 getActivity(),
                 currentRequestCode,
-                intent,
+                firstIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
-        alarmManager.cancel(pendingIntent);
+        alarmManager.cancel(firstPendingIntent);
+
+        // 取消第二次提醒
+        Intent secondIntent = new Intent(getActivity(), MedicationReminderReceiver.class);
+        PendingIntent secondPendingIntent = PendingIntent.getBroadcast(
+                getActivity(),
+                currentRequestCode + 2000,
+                secondIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        alarmManager.cancel(secondPendingIntent);
     }
 
     private void updateMedicationStatusDisplay() {
