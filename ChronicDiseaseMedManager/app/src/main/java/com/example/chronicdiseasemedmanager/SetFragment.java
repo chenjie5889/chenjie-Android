@@ -28,22 +28,23 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public class SetFragment extends Fragment {
 
     private TextView tvNickname, tvPhone, tvVersion;
-    private TextView itemProfileInfo, itemAbout;
+    private TextView itemProfileInfo, itemAbout, itemAssistant; // 添加itemAssistant
     private Button btnLogout;
     private ApiService apiService;
     private Long currentUserId;
+    private View rootView; // 添加根视图引用
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_set, container, false);
+        rootView = inflater.inflate(R.layout.fragment_set, container, false); // 保存根视图
 
-        initViews(view);
+        initViews(rootView);
         initRetrofit();
         loadLatestUserInfo();
         setupListeners();
 
-        return view;
+        return rootView;
     }
 
     private void initViews(View v) {
@@ -53,6 +54,7 @@ public class SetFragment extends Fragment {
 
         itemProfileInfo = v.findViewById(R.id.itemProfileInfo);
         itemAbout = v.findViewById(R.id.itemAbout);
+        itemAssistant = v.findViewById(R.id.itemAssistant); // 直接从传入的View中查找
         btnLogout = v.findViewById(R.id.btnLogout);
 
         // 获取并显示版本号
@@ -169,6 +171,12 @@ public class SetFragment extends Fragment {
                     .setMessage("慢性病用药管理系统\n\n致力于为慢性病患者提供便捷的用药提醒与健康档案管理服务。")
                     .setPositiveButton("确定", null)
                     .show();
+        });
+
+        // 智能助手 - 直接使用已初始化的itemAssistant变量
+        itemAssistant.setOnClickListener(view -> {
+            Intent intent = new Intent(getActivity(), ChatAssistantActivity.class);
+            startActivity(intent);
         });
 
         // 退出登录
