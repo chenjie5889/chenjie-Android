@@ -1357,7 +1357,7 @@ public class MedFragment extends Fragment {
             intent.putExtra("hour", hour);
             intent.putExtra("minute", minute);
             intent.putExtra("medication_id", medication.id != null ? medication.id : 0L);
-
+            intent.putExtra("planned_time", timeStr);
             PendingIntent pendingIntent = PendingIntent.getBroadcast(
                     requireActivity(),
                     requestCode,
