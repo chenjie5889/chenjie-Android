@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>慢性病管理系统 - 管理员登录</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo h1 {
+            color: #4a5568;
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        
+        .logo p {
+            color: #a0aec0;
+            font-size: 14px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            color: #4a5568;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .login-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .login-btn:active {
+            transform: translateY(0);
+        }
+        
+        .error-message {
+            color: #f56565;
+            text-align: center;
+            margin-top: 10px;
+            font-size: 14px;
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <h1>慢性病管理系统</h1>
+            <p>管理员登录</p>
+        </div>
+        
+        <form id="loginForm">
+            <div class="input-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" placeholder="请输入管理员用户名" required>
+            </div>
+            
+            <div class="input-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" placeholder="请输入密码" required>
+            </div>
+            
+            <button type="submit" class="login-btn">登录</button>
+            
+            <div id="errorMessage" class="error-message"></div>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMessage = document.getElementById('errorMessage');
+            
+            errorMessage.textContent = '';
+            
+            try {
+                const response = await fetch('http://localhost:8080/api/admin/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+                });
+                
+                const data = await response.json();
+                
+                if (data.code === 200) {
+                    // 登录成功，保存管理员信息
+                    localStorage.setItem('adminToken', 'admin_logged_in');
+                    localStorage.setItem('adminInfo', JSON.stringify(data.data));
+                    
+                    // 跳转到管理页面
+                    window.location.href = 'admin_dashboard.html';
+                } else {
+                    errorMessage.textContent = data.msg;
+                }
+            } catch (error) {
+                errorMessage.textContent = '网络错误，请检查服务器连接';
+                console.error('登录错误:', error);
+            }
+        });
+        
+        // 检查是否已登录，如果已登录则直接跳转
+        window.onload = function() {
+            const adminToken = localStorage.getItem('adminToken');
+            if (adminToken) {
+                window.location.href = 'admin_dashboard.html';
+            }
+        };
+    </script>
+</body>
+</html>
