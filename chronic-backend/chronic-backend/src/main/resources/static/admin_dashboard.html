@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>慢性病管理系统 - 管理后台</title>
+    <!-- 引入Chart.js图表库 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
             margin: 0;
@@ -46,6 +48,7 @@
         .nav-links {
             display: flex;
             gap: 20px;
+            align-items: center;
         }
         
         .nav-link {
@@ -104,6 +107,78 @@
             font-weight: bold;
         }
         
+        /* 图表容器 */
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        .chart-title {
+            color: #4a5568;
+            font-size: 18px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        /* 搜索框 */
+        .search-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+        
+        .search-box {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .search-btn {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .search-btn:hover {
+            background: #5a67d8;
+        }
+        
+        .search-hint {
+            color: #a0aec0;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
         /* 用户列表 */
         .section-title {
             color: #4a5568;
@@ -156,22 +231,22 @@
             transition: background-color 0.3s;
         }
         
-        .btn-view {
-            background-color: #4299e1;
-            color: white;
-        }
-        
         .btn-delete {
             background-color: #f56565;
             color: white;
         }
         
-        .btn-view:hover {
-            background-color: #3182ce;
-        }
-        
         .btn-delete:hover {
             background-color: #e53e3e;
+        }
+        
+        .btn-reset {
+            background-color: #a0aec0;
+            color: white;
+        }
+        
+        .btn-reset:hover {
+            background-color: #718096;
         }
         
         .action-buttons {
@@ -183,6 +258,7 @@
         .pagination {
             display: flex;
             justify-content: center;
+            align-items: center;
             gap: 8px;
             margin-top: 20px;
         }
@@ -201,80 +277,24 @@
             border-color: #667eea;
         }
         
-        /* 模态框 */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1001;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            max-width: 600px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-        
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .modal-title {
-            font-size: 20px;
+        .page-info {
             color: #4a5568;
-        }
-        
-        .close-btn {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #a0aec0;
-        }
-        
-        .modal-section {
-            margin-bottom: 20px;
-        }
-        
-        .modal-section h3 {
-            color: #4a5568;
-            margin-bottom: 10px;
-            border-bottom: 2px solid #e2e8f0;
-            padding-bottom: 5px;
-        }
-        
-        .info-row {
-            display: flex;
-            margin-bottom: 8px;
-        }
-        
-        .info-label {
-            width: 100px;
-            color: #a0aec0;
-        }
-        
-        .info-value {
-            flex: 1;
-            color: #4a5568;
+            font-size: 14px;
+            margin: 0 10px;
         }
         
         /* 响应式 */
         @media (max-width: 768px) {
             .stats-grid {
                 grid-template-columns: 1fr;
+            }
+            
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-card {
+                padding: 15px;
             }
             
             table {
@@ -284,6 +304,40 @@
             .action-buttons {
                 flex-direction: column;
             }
+            
+            .search-box {
+                flex-direction: column;
+            }
+            
+            .search-input {
+                width: 100%;
+            }
+            
+            .search-btn, .btn-reset {
+                width: 100%;
+            }
+        }
+        
+        /* 加载动画 */
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #a0aec0;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -293,7 +347,7 @@
         <div class="nav-content">
             <div class="logo">慢性病管理系统 - 管理后台</div>
             <div class="nav-links">
-                <a href="#" class="nav-link active" onclick="showDashboard()">仪表盘</a>
+                <a href="#" class="nav-link active">仪表盘</a>
                 <a href="#" class="nav-link" onclick="logout()">退出登录</a>
             </div>
         </div>
@@ -321,8 +375,41 @@
             </div>
         </div>
 
+        <!-- 图表分析 -->
+        <h2 class="section-title">统计分析</h2>
+        <div class="charts-container">
+            <div class="chart-card">
+                <h3 class="chart-title">用户性别分布</h3>
+                <canvas id="genderChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3 class="chart-title">用户年龄段分布</h3>
+                <canvas id="ageChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 搜索功能 -->
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" 
+                       id="searchInput" 
+                       class="search-input" 
+                       placeholder="输入ID、手机号、昵称或真实姓名进行搜索..."
+                       onkeypress="handleSearchKeyPress(event)">
+                <button class="search-btn" onclick="searchUsers()">搜索</button>
+                <button class="btn btn-reset" onclick="resetSearch()">重置</button>
+            </div>
+            <div class="search-hint">
+                提示：可以搜索用户ID、手机号、昵称或真实姓名
+            </div>
+        </div>
+
         <!-- 用户列表 -->
         <h2 class="section-title">用户管理</h2>
+        <div id="tableLoading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            加载中...
+        </div>
         <div class="table-container">
             <table id="userTable">
                 <thead>
@@ -347,23 +434,14 @@
         </div>
     </div>
 
-    <!-- 用户详情模态框 -->
-    <div id="userModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">用户详情</h2>
-                <button class="close-btn" onclick="closeModal()">&times;</button>
-            </div>
-            <div id="userDetailContent">
-                <!-- 用户详情将通过JS动态加载 -->
-            </div>
-        </div>
-    </div>
-
     <script>
         let currentPage = 1;
         const pageSize = 10;
         let totalPages = 1;
+        let totalUsers = 0;
+        let currentKeyword = '';
+        let genderChart = null;
+        let ageChart = null;
         
         // 检查登录状态
         function checkLogin() {
@@ -398,7 +476,89 @@
             showAdminInfo();
             loadStatistics();
             loadUsers(currentPage);
+            initializeCharts();
         });
+        
+        // 初始化图表
+        function initializeCharts() {
+            // 性别图表
+            const genderCtx = document.getElementById('genderChart').getContext('2d');
+            genderChart = new Chart(genderCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['男', '女', '未知'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: [
+                            '#4299e1', // 蓝色
+                            '#ed64a6', // 粉色
+                            '#a0aec0'  // 灰色
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+            
+            // 年龄图表
+            const ageCtx = document.getElementById('ageChart').getContext('2d');
+            ageChart = new Chart(ageCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['18岁以下', '18-30岁', '31-45岁', '46-60岁', '60岁以上'],
+                    datasets: [{
+                        label: '用户数量',
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: '#667eea',
+                        borderColor: '#5a67d8',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 更新图表数据
+        function updateCharts(statistics) {
+            if (!statistics || !statistics.genderStats || !statistics.ageStats) return;
+            
+            // 更新性别图表
+            genderChart.data.datasets[0].data = [
+                statistics.genderStats.男 || 0,
+                statistics.genderStats.女 || 0,
+                statistics.genderStats.未知 || 0
+            ];
+            genderChart.update();
+            
+            // 更新年龄图表
+            ageChart.data.datasets[0].data = [
+                statistics.ageStats['18岁以下'] || 0,
+                statistics.ageStats['18-30岁'] || 0,
+                statistics.ageStats['31-45岁'] || 0,
+                statistics.ageStats['46-60岁'] || 0,
+                statistics.ageStats['60岁以上'] || 0
+            ];
+            ageChart.update();
+        }
         
         // 加载统计数据
         async function loadStatistics() {
@@ -411,6 +571,9 @@
                     document.getElementById('usersWithArchive').textContent = data.usersWithArchive;
                     document.getElementById('usersWithDisease').textContent = data.usersWithDisease;
                     document.getElementById('totalFamilies').textContent = data.totalFamilies;
+                    
+                    // 更新图表
+                    updateCharts(data);
                 }
             } catch (error) {
                 console.error('加载统计数据失败:', error);
@@ -418,19 +581,66 @@
         }
         
         // 加载用户列表
-        async function loadUsers(page) {
+        async function loadUsers(page, keyword = '') {
             try {
-                const response = await fetch(`http://localhost:8080/api/admin/users?page=${page}&size=${pageSize}`);
+                showLoading(true);
+                
+                let url = `http://localhost:8080/api/admin/users?page=${page}&size=${pageSize}`;
+                if (keyword && keyword.trim() !== '') {
+                    url += `&keyword=${encodeURIComponent(keyword)}`;
+                    currentKeyword = keyword;
+                } else {
+                    currentKeyword = '';
+                    document.getElementById('searchInput').value = '';
+                }
+                
+                const response = await fetch(url);
                 const data = await response.json();
                 
                 if (data.code === 200) {
                     renderUsers(data.users);
-                    renderPagination(data.totalPages, page);
+                    renderPagination(data.totalPages, page, data.total);
                     totalPages = data.totalPages;
+                    totalUsers = data.total;
                     currentPage = page;
                 }
             } catch (error) {
                 console.error('加载用户列表失败:', error);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // 搜索用户
+        function searchUsers() {
+            const keyword = document.getElementById('searchInput').value.trim();
+            loadUsers(1, keyword);
+        }
+        
+        // 重置搜索
+        function resetSearch() {
+            document.getElementById('searchInput').value = '';
+            loadUsers(1, '');
+        }
+        
+        // 处理搜索框回车键
+        function handleSearchKeyPress(event) {
+            if (event.key === 'Enter') {
+                searchUsers();
+            }
+        }
+        
+        // 显示/隐藏加载状态
+        function showLoading(show) {
+            const tableLoading = document.getElementById('tableLoading');
+            const tableContainer = document.querySelector('.table-container');
+            
+            if (show) {
+                tableLoading.style.display = 'block';
+                tableContainer.style.opacity = '0.5';
+            } else {
+                tableLoading.style.display = 'none';
+                tableContainer.style.opacity = '1';
             }
         }
         
@@ -438,6 +648,17 @@
         function renderUsers(users) {
             const tbody = document.getElementById('userTableBody');
             tbody.innerHTML = '';
+            
+            if (users.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td colspan="6" style="text-align: center; padding: 40px; color: #a0aec0;">
+                        ${currentKeyword ? '未找到匹配的用户' : '暂无用户数据'}
+                    </td>
+                `;
+                tbody.appendChild(row);
+                return;
+            }
             
             users.forEach(user => {
                 const row = document.createElement('tr');
@@ -450,7 +671,6 @@
                     <td>${user.diseaseCount}</td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn btn-view" onclick="viewUserDetail(${user.id})">查看</button>
                             <button class="btn btn-delete" onclick="deleteUser(${user.id})">删除</button>
                         </div>
                     </td>
@@ -461,16 +681,22 @@
         }
         
         // 渲染分页
-        function renderPagination(totalPages, currentPage) {
+        function renderPagination(totalPages, currentPage, totalUsers) {
             const pagination = document.getElementById('pagination');
             pagination.innerHTML = '';
+            
+            // 显示总数信息
+            const totalInfo = document.createElement('span');
+            totalInfo.className = 'page-info';
+            totalInfo.textContent = `共 ${totalUsers} 条记录`;
+            pagination.appendChild(totalInfo);
             
             // 上一页按钮
             if (currentPage > 1) {
                 const prevBtn = document.createElement('button');
                 prevBtn.className = 'page-btn';
                 prevBtn.textContent = '上一页';
-                prevBtn.onclick = () => loadUsers(currentPage - 1);
+                prevBtn.onclick = () => loadUsers(currentPage - 1, currentKeyword);
                 pagination.appendChild(prevBtn);
             }
             
@@ -478,12 +704,45 @@
             const startPage = Math.max(1, currentPage - 2);
             const endPage = Math.min(totalPages, currentPage + 2);
             
+            // 第一页
+            if (startPage > 1) {
+                const firstBtn = document.createElement('button');
+                firstBtn.className = 'page-btn';
+                firstBtn.textContent = '1';
+                firstBtn.onclick = () => loadUsers(1, currentKeyword);
+                pagination.appendChild(firstBtn);
+                
+                if (startPage > 2) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'page-info';
+                    ellipsis.textContent = '...';
+                    pagination.appendChild(ellipsis);
+                }
+            }
+            
+            // 中间页码
             for (let i = startPage; i <= endPage; i++) {
                 const pageBtn = document.createElement('button');
                 pageBtn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
                 pageBtn.textContent = i;
-                pageBtn.onclick = () => loadUsers(i);
+                pageBtn.onclick = () => loadUsers(i, currentKeyword);
                 pagination.appendChild(pageBtn);
+            }
+            
+            // 最后一页
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'page-info';
+                    ellipsis.textContent = '...';
+                    pagination.appendChild(ellipsis);
+                }
+                
+                const lastBtn = document.createElement('button');
+                lastBtn.className = 'page-btn';
+                lastBtn.textContent = totalPages;
+                lastBtn.onclick = () => loadUsers(totalPages, currentKeyword);
+                pagination.appendChild(lastBtn);
             }
             
             // 下一页按钮
@@ -491,111 +750,8 @@
                 const nextBtn = document.createElement('button');
                 nextBtn.className = 'page-btn';
                 nextBtn.textContent = '下一页';
-                nextBtn.onclick = () => loadUsers(currentPage + 1);
+                nextBtn.onclick = () => loadUsers(currentPage + 1, currentKeyword);
                 pagination.appendChild(nextBtn);
-            }
-        }
-        
-        // 查看用户详情
-        async function viewUserDetail(userId) {
-            try {
-                const response = await fetch(`http://localhost:8080/api/admin/userDetail?userId=${userId}`);
-                const data = await response.json();
-                
-                if (data.code === 200) {
-                    const modalContent = document.getElementById('userDetailContent');
-                    const user = data.user;
-                    const archive = data.archive;
-                    const diseases = data.diseases || [];
-                    
-                    let html = `
-                        <div class="modal-section">
-                            <h3>基本信息</h3>
-                            <div class="info-row">
-                                <span class="info-label">用户ID:</span>
-                                <span class="info-value">${user.id}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">手机号:</span>
-                                <span class="info-value">${user.phone}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">昵称:</span>
-                                <span class="info-value">${user.nickname || '-'}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">真实姓名:</span>
-                                <span class="info-value">${user.realName || '-'}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">身份证号:</span>
-                                <span class="info-value">${user.idCard || '-'}</span>
-                            </div>
-                        </div>
-                    `;
-                    
-                    if (archive) {
-                        html += `
-                            <div class="modal-section">
-                                <h3>健康档案</h3>
-                                <div class="info-row">
-                                    <span class="info-label">性别:</span>
-                                    <span class="info-value">${archive.gender || '-'}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">生日:</span>
-                                    <span class="info-value">${archive.birthday || '-'}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">身高:</span>
-                                    <span class="info-value">${archive.height || '-'} cm</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">体重:</span>
-                                    <span class="info-value">${archive.weight || '-'} kg</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">病史:</span>
-                                    <span class="info-value">${archive.medicalHistory || '-'}</span>
-                                </div>
-                            </div>
-                        `;
-                    }
-                    
-                    if (diseases.length > 0) {
-                        html += `
-                            <div class="modal-section">
-                                <h3>疾病记录 (${diseases.length}条)</h3>
-                        `;
-                        
-                        diseases.forEach(disease => {
-                            html += `
-                                <div style="margin-bottom: 15px; padding: 10px; background: #f7fafc; border-radius: 6px;">
-                                    <div class="info-row">
-                                        <span class="info-label">疾病名称:</span>
-                                        <span class="info-value">${disease.diseaseName}</span>
-                                    </div>
-                                    <div class="info-row">
-                                        <span class="info-label">确诊日期:</span>
-                                        <span class="info-value">${disease.diagnosisDate}</span>
-                                    </div>
-                                    <div class="info-row">
-                                        <span class="info-label">医院:</span>
-                                        <span class="info-value">${disease.hospital || '-'}</span>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        
-                        html += `</div>`;
-                    }
-                    
-                    modalContent.innerHTML = html;
-                    document.getElementById('userModal').style.display = 'flex';
-                }
-            } catch (error) {
-                console.error('加载用户详情失败:', error);
-                alert('加载用户详情失败');
             }
         }
         
@@ -614,8 +770,9 @@
                 
                 if (data.code === 200) {
                     alert('用户删除成功');
+                    // 重新加载数据和统计
                     loadStatistics();
-                    loadUsers(currentPage);
+                    loadUsers(currentPage, currentKeyword);
                 } else {
                     alert('删除失败: ' + data.msg);
                 }
@@ -625,30 +782,12 @@
             }
         }
         
-        // 关闭模态框
-        function closeModal() {
-            document.getElementById('userModal').style.display = 'none';
-        }
-        
-        // 显示仪表盘
-        function showDashboard() {
-            // 当前就是仪表盘，不需要操作
-        }
-        
         // 退出登录
         function logout() {
             if (confirm('确定要退出登录吗？')) {
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('adminInfo');
                 window.location.href = 'admin_login.html';
-            }
-        }
-        
-        // 点击模态框外部关闭
-        window.onclick = function(event) {
-            const modal = document.getElementById('userModal');
-            if (event.target === modal) {
-                closeModal();
             }
         }
     </script>

@@ -12,7 +12,7 @@ import java.util.*;
 public class AdminController {
     
     @Autowired
-    private AdminRepository adminRepository;  // 新增
+    private AdminRepository adminRepository;
     
     @Autowired
     private UserRepository userRepository;
@@ -29,32 +29,27 @@ public class AdminController {
     @Autowired
     private FamilyRelationshipRepository familyRepository;
     
-    // 管理员登录
+    // 管理员登录（保持不变）
     @PostMapping("/login")
     public AdminResponse adminLogin(@RequestParam String username, @RequestParam String password) {
         try {
-            // 从数据库验证管理员账户
             Admin admin = adminRepository.findByUsername(username);
             
             if (admin == null) {
                 return new AdminResponse(400, "管理员账户不存在", null);
             }
             
-            // 检查状态
             if (admin.getStatus() != null && admin.getStatus() == 0) {
                 return new AdminResponse(400, "该账户已被禁用", null);
             }
             
-            // 验证密码（注意：实际项目中应该使用加密密码）
             if (!admin.getPassword().equals(password)) {
                 return new AdminResponse(400, "密码错误", null);
             }
             
-            // 更新最后登录时间
             admin.setLastLogin(LocalDateTime.now());
             adminRepository.save(admin);
             
-            // 登录成功，返回管理员信息
             Map<String, Object> adminInfo = new HashMap<>();
             adminInfo.put("id", admin.getId());
             adminInfo.put("username", admin.getUsername());
@@ -68,7 +63,7 @@ public class AdminController {
         }
     }
     
-    // 获取当前管理员信息
+    // 获取当前管理员信息（保持不变）
     @GetMapping("/profile")
     public AdminResponse getAdminProfile(@RequestParam Long adminId) {
         try {
@@ -93,7 +88,7 @@ public class AdminController {
         }
     }
     
-    // 修改密码
+    // 修改密码（保持不变）
     @PostMapping("/changePassword")
     public AdminResponse changePassword(
         @RequestParam Long adminId,
@@ -108,12 +103,10 @@ public class AdminController {
             
             Admin admin = adminOpt.get();
             
-            // 验证原密码
             if (!admin.getPassword().equals(oldPassword)) {
                 return new AdminResponse(400, "原密码错误", null);
             }
             
-            // 更新密码
             admin.setPassword(newPassword);
             adminRepository.save(admin);
             
@@ -124,20 +117,52 @@ public class AdminController {
         }
     }
     
-    // 获取用户列表（保持不变）
+    // 获取用户列表 - 添加查询功能
     @GetMapping("/users")
-    public UserListResponse getUserList(@RequestParam(defaultValue = "1") int page,
-                                       @RequestParam(defaultValue = "10") int size) {
+    public UserListResponse getUserList(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword) {
         try {
             List<User> allUsers = userRepository.findAll();
             
-            // 分页逻辑
-            int total = allUsers.size();
+            // 如果有关键词，进行筛选
+            List<User> filteredUsers = new ArrayList<>();
+            if (keyword != null && !keyword.trim().isEmpty()) {
+                String searchKey = keyword.toLowerCase();
+                for (User user : allUsers) {
+                    boolean match = false;
+                    // 搜索ID
+                    if (String.valueOf(user.getId()).contains(searchKey)) {
+                        match = true;
+                    }
+                    // 搜索手机号
+                    if (user.getPhone() != null && user.getPhone().toLowerCase().contains(searchKey)) {
+                        match = true;
+                    }
+                    // 搜索昵称
+                    if (user.getNickname() != null && user.getNickname().toLowerCase().contains(searchKey)) {
+                        match = true;
+                    }
+                    // 搜索真实姓名
+                    if (user.getRealName() != null && user.getRealName().toLowerCase().contains(searchKey)) {
+                        match = true;
+                    }
+                    
+                    if (match) {
+                        filteredUsers.add(user);
+                    }
+                }
+            } else {
+                filteredUsers = allUsers;
+            }
+            
+            int total = filteredUsers.size();
             int totalPages = (int) Math.ceil((double) total / size);
             int start = (page - 1) * size;
             int end = Math.min(start + size, total);
             
-            List<User> pageUsers = allUsers.subList(start, end);
+            List<User> pageUsers = filteredUsers.subList(start, end);
             
             List<AdminUserInfo> userInfos = new ArrayList<>();
             for (User user : pageUsers) {
@@ -146,9 +171,8 @@ public class AdminController {
                 info.setPhone(user.getPhone());
                 info.setNickname(user.getNickname());
                 info.setRealName(user.getRealName());
-                info.setIdCard(user.getIdCard());
                 
-                // 统计用户数据
+                // 统计用户数据，但不显示具体内容
                 long diseaseCount = diseaseRepository.countByUserId(user.getId());
                 Optional<Archive> archive = archiveRepository.findByUserId(user.getId());
                 
@@ -166,25 +190,70 @@ public class AdminController {
         }
     }
     
-    // 获取统计数据（保持不变）
+    // 获取统计数据 - 添加图表数据
     @GetMapping("/statistics")
     public StatisticsResponse getStatistics() {
         try {
             StatisticsResponse response = new StatisticsResponse();
             
-            // 总用户数
-            long totalUsers = userRepository.count();
+            List<User> allUsers = userRepository.findAll();
+            long totalUsers = allUsers.size();
             
-            // 有档案的用户数
             long usersWithArchive = 0;
             long usersWithDisease = 0;
             long totalFamilies = 0;
             
-            List<User> allUsers = userRepository.findAll();
+            // 性别统计
+            Map<String, Long> genderStats = new HashMap<>();
+            genderStats.put("男", 0L);
+            genderStats.put("女", 0L);
+            genderStats.put("未知", 0L);
+            
+            // 年龄段统计
+            Map<String, Long> ageStats = new HashMap<>();
+            ageStats.put("18岁以下", 0L);
+            ageStats.put("18-30岁", 0L);
+            ageStats.put("31-45岁", 0L);
+            ageStats.put("46-60岁", 0L);
+            ageStats.put("60岁以上", 0L);
+            
             for (User user : allUsers) {
                 Optional<Archive> archive = archiveRepository.findByUserId(user.getId());
                 if (archive.isPresent()) {
                     usersWithArchive++;
+                    
+                    // 统计性别
+                    String gender = archive.get().getGender();
+                    if (gender != null) {
+                        if (gender.equals("男")) {
+                            genderStats.put("男", genderStats.get("男") + 1);
+                        } else if (gender.equals("女")) {
+                            genderStats.put("女", genderStats.get("女") + 1);
+                        } else {
+                            genderStats.put("未知", genderStats.get("未知") + 1);
+                        }
+                    } else {
+                        genderStats.put("未知", genderStats.get("未知") + 1);
+                    }
+                    
+                    // 统计年龄
+                    if (archive.get().getBirthday() != null) {
+                        int birthYear = archive.get().getBirthday().getYear();
+                        int currentYear = LocalDateTime.now().getYear();
+                        int age = currentYear - birthYear;
+                        
+                        if (age < 18) {
+                            ageStats.put("18岁以下", ageStats.get("18岁以下") + 1);
+                        } else if (age <= 30) {
+                            ageStats.put("18-30岁", ageStats.get("18-30岁") + 1);
+                        } else if (age <= 45) {
+                            ageStats.put("31-45岁", ageStats.get("31-45岁") + 1);
+                        } else if (age <= 60) {
+                            ageStats.put("46-60岁", ageStats.get("46-60岁") + 1);
+                        } else {
+                            ageStats.put("60岁以上", ageStats.get("60岁以上") + 1);
+                        }
+                    }
                 }
                 
                 long diseaseCount = diseaseRepository.countByUserId(user.getId());
@@ -203,13 +272,16 @@ public class AdminController {
             response.setUsersWithArchive(usersWithArchive);
             response.setUsersWithDisease(usersWithDisease);
             response.setTotalFamilies(totalFamilies);
+            response.setGenderStats(genderStats);
+            response.setAgeStats(ageStats);
             response.setCode(200);
             response.setMsg("获取成功");
             
             return response;
         } catch (Exception e) {
             e.printStackTrace();
-            return new StatisticsResponse(500, "获取失败: " + e.getMessage(), 0, 0, 0, 0);
+            return new StatisticsResponse(500, "获取失败: " + e.getMessage(), 
+                    0, 0, 0, 0, new HashMap<>(), new HashMap<>());
         }
     }
     
@@ -217,13 +289,11 @@ public class AdminController {
     @DeleteMapping("/deleteUser")
     public AdminResponse deleteUser(@RequestParam Long userId) {
         try {
-            // 检查用户是否存在
             Optional<User> userOpt = userRepository.findById(userId);
             if (!userOpt.isPresent()) {
                 return new AdminResponse(404, "用户不存在", null);
             }
             
-            // 删除用户（关联数据会自动删除，因为有外键约束）
             userRepository.deleteById(userId);
             
             return new AdminResponse(200, "用户删除成功", null);
@@ -233,23 +303,42 @@ public class AdminController {
         }
     }
     
-    // 查看用户详情（保持不变）
+    // 查看用户详情 - 修改为只显示基本信息，不显示敏感数据
     @GetMapping("/userDetail")
-    public UserDetailResponse getUserDetail(@RequestParam Long userId) {
+    public AdminResponse getUserDetail(@RequestParam Long userId) {
         try {
             Optional<User> userOpt = userRepository.findById(userId);
             if (!userOpt.isPresent()) {
-                return new UserDetailResponse(404, "用户不存在", null, null, null);
+                return new AdminResponse(404, "用户不存在", null);
             }
             
             User user = userOpt.get();
-            Optional<Archive> archive = archiveRepository.findByUserId(userId);
-            List<Disease> diseases = diseaseRepository.findByUserId(userId);
             
-            return new UserDetailResponse(200, "获取成功", user, archive.orElse(null), diseases);
+            // 只返回基本信息，不返回档案、疾病、家属等敏感数据
+            Map<String, Object> userInfo = new HashMap<>();
+            userInfo.put("id", user.getId());
+            userInfo.put("phone", user.getPhone());
+            userInfo.put("nickname", user.getNickname());
+            userInfo.put("realName", user.getRealName());
+            
+            // 只返回统计数量，不返回具体内容
+            long diseaseCount = diseaseRepository.countByUserId(userId);
+            Optional<Archive> archive = archiveRepository.findByUserId(userId);
+            
+            userInfo.put("hasArchive", archive.isPresent());
+            userInfo.put("diseaseCount", diseaseCount);
+            
+            // 家属关系数量
+            List<FamilyRelationship> relationships = familyRepository.findAllByUserId(userId);
+            long familyCount = relationships.stream()
+                .filter(r -> r.getStatus() == 1)
+                .count();
+            userInfo.put("familyCount", familyCount);
+            
+            return new AdminResponse(200, "获取成功", userInfo);
         } catch (Exception e) {
             e.printStackTrace();
-            return new UserDetailResponse(500, "获取失败: " + e.getMessage(), null, null, null);
+            return new AdminResponse(500, "获取失败: " + e.getMessage(), null);
         }
     }
     
@@ -293,7 +382,6 @@ public class AdminController {
         private String phone;
         private String nickname;
         private String realName;
-        private String idCard;
         private boolean hasArchive;
         private long diseaseCount;
     }
@@ -306,34 +394,23 @@ public class AdminController {
         private long usersWithArchive;
         private long usersWithDisease;
         private long totalFamilies;
+        private Map<String, Long> genderStats;  // 性别统计
+        private Map<String, Long> ageStats;     // 年龄段统计
         
         public StatisticsResponse() {}
         
         public StatisticsResponse(int code, String msg, long totalUsers, 
-                                 long usersWithArchive, long usersWithDisease, long totalFamilies) {
+                                 long usersWithArchive, long usersWithDisease, 
+                                 long totalFamilies, Map<String, Long> genderStats,
+                                 Map<String, Long> ageStats) {
             this.code = code;
             this.msg = msg;
             this.totalUsers = totalUsers;
             this.usersWithArchive = usersWithArchive;
             this.usersWithDisease = usersWithDisease;
             this.totalFamilies = totalFamilies;
-        }
-    }
-    
-    @lombok.Data
-    public static class UserDetailResponse {
-        private int code;
-        private String msg;
-        private User user;
-        private Archive archive;
-        private List<Disease> diseases;
-        
-        public UserDetailResponse(int code, String msg, User user, Archive archive, List<Disease> diseases) {
-            this.code = code;
-            this.msg = msg;
-            this.user = user;
-            this.archive = archive;
-            this.diseases = diseases;
+            this.genderStats = genderStats;
+            this.ageStats = ageStats;
         }
     }
 }
