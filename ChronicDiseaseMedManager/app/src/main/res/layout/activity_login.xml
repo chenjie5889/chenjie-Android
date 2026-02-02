@@ -46,31 +46,15 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
-                <LinearLayout
+                <!-- 移除用户/管理员切换按钮，只保留普通用户登录 -->
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
-                    android:background="#EBF5FF"
-                    android:padding="4dp"
-                    android:orientation="horizontal">
-                    <androidx.appcompat.widget.AppCompatButton
-                        android:id="@+id/btnUser"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_weight="1"
-                        android:text="普通用户"
-                        android:textColor="#FFFFFF"
-                        android:background="#3B82F6"
-                        android:stateListAnimator="@null" />
-                    <androidx.appcompat.widget.AppCompatButton
-                        android:id="@+id/btnAdmin"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_weight="1"
-                        android:text="管理员"
-                        android:textColor="#3B82F6"
-                        android:background="@android:color/transparent"
-                        android:stateListAnimator="@null" />
-                </LinearLayout>
+                    android:gravity="center"
+                    android:text="用户登录"
+                    android:textColor="#3B82F6"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
 
                 <EditText
                     android:id="@+id/etPhone"
@@ -100,7 +84,7 @@
                     android:layout_height="56dp"
                     android:layout_marginTop="24dp"
                     android:background="#3B82F6"
-                    android:text="登 录"
+                    android:text="用户登录"
                     android:textColor="#FFFFFF"
                     android:textSize="16sp" />
 
@@ -145,6 +129,18 @@
                 android:gravity="center"
                 android:text="没有账号？立即注册"
                 android:textColor="#3B82F6" />
+
+            <!-- 添加管理员登录入口 -->
+            <TextView
+                android:id="@+id/tvAdminEntry"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tvRegister"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:text="管理员请访问Web管理系统"
+                android:textColor="#9CA3AF"
+                android:textSize="12sp" />
 
         </RelativeLayout>
     </androidx.cardview.widget.CardView>

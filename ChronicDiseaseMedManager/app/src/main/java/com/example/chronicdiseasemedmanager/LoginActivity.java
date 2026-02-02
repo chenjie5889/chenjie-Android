@@ -19,15 +19,11 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class LoginActivity extends AppCompatActivity {
 
-    private boolean isUser = true;
-    private Button btnUser, btnAdmin, btnLogin;
-    private TextView tvShowOther, btnSms, btnWechat, tvRegister;
+    private Button btnLogin;
+    private TextView tvShowOther, btnSms, btnWechat, tvRegister, tvAdminEntry;
     private LinearLayout layoutOther;
     private EditText etPhone, etPass;
     private ApiService apiService;
-
-    private final int BLUE_MAIN = 0xFF3B82F6;
-    private final int COLOR_TRANS = 0x00000000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,17 +33,15 @@ public class LoginActivity extends AppCompatActivity {
         initWidget();
         initRetrofit();
         setupListeners();
-        updateTheme();
     }
 
     private void initWidget() {
-        btnUser = findViewById(R.id.btnUser);
-        btnAdmin = findViewById(R.id.btnAdmin);
         btnLogin = findViewById(R.id.btnLogin);
         etPhone = findViewById(R.id.etPhone);
         etPass = findViewById(R.id.etPass);
         tvRegister = findViewById(R.id.tvRegister);
         tvShowOther = findViewById(R.id.tvShowOther);
+        tvAdminEntry = findViewById(R.id.tvAdminEntry);
         layoutOther = findViewById(R.id.layoutOtherMethods);
         btnSms = findViewById(R.id.btnSmsLogin);
         btnWechat = findViewById(R.id.btnWechatLogin);
@@ -55,16 +49,13 @@ public class LoginActivity extends AppCompatActivity {
 
     private void initRetrofit() {
         apiService = new Retrofit.Builder()
-                .baseUrl("http://192.168.71.34:8080/")
+                .baseUrl("http://192.168.71.34:8080/") // 修改为你的服务器IP
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
                 .create(ApiService.class);
     }
 
     private void setupListeners() {
-        btnUser.setOnClickListener(v -> { isUser = true; updateTheme(); });
-        btnAdmin.setOnClickListener(v -> { isUser = false; updateTheme(); });
-
         tvShowOther.setOnClickListener(v -> {
             tvShowOther.setVisibility(View.GONE);
             layoutOther.setVisibility(View.VISIBLE);
@@ -75,16 +66,20 @@ public class LoginActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
+        tvAdminEntry.setOnClickListener(v -> {
+            Toast.makeText(this, "管理员请访问: http://your-server-ip:8080/admin", Toast.LENGTH_LONG).show();
+        });
+
         btnLogin.setOnClickListener(v -> {
             String phone = etPhone.getText().toString().trim();
             String pass = etPass.getText().toString().trim();
 
             if (phone.isEmpty() || pass.isEmpty()) {
-                Toast.makeText(this, "请输入账号和密码", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "请输入手机号和密码", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            // 新增：调用新的登录接口
+            // 调用用户登录接口
             Call<LoginResponse> call = apiService.login(phone, pass);
             call.enqueue(new Callback<LoginResponse>() {
                 @Override
@@ -92,7 +87,6 @@ public class LoginActivity extends AppCompatActivity {
                     if (response.isSuccessful() && response.body() != null) {
                         LoginResponse res = response.body();
 
-                        // 在登录成功的回调中
                         if (res.code == 200) {
                             // 保存用户信息到SharedPreferences
                             SharedPreferences sp = getSharedPreferences("user_info", MODE_PRIVATE);
@@ -106,7 +100,7 @@ public class LoginActivity extends AppCompatActivity {
                             startActivity(new Intent(LoginActivity.this, MainActivity.class));
                             finish();
                         } else if (res.code == 201) {
-                            // 保存用户ID
+                            // 需要身份绑定
                             SharedPreferences sp = getSharedPreferences("user_info", MODE_PRIVATE);
                             SharedPreferences.Editor editor = sp.edit();
                             editor.putString("phone", phone);
@@ -118,7 +112,7 @@ public class LoginActivity extends AppCompatActivity {
                             intent.putExtra("phone", phone);
                             startActivity(intent);
                             finish();
-                        }else {
+                        } else {
                             Toast.makeText(LoginActivity.this, res.msg, Toast.LENGTH_SHORT).show();
                         }
                     }
@@ -132,19 +126,5 @@ public class LoginActivity extends AppCompatActivity {
 
         btnSms.setOnClickListener(v -> Toast.makeText(this, "短信登录暂未开放", Toast.LENGTH_SHORT).show());
         btnWechat.setOnClickListener(v -> Toast.makeText(this, "微信登录正在接入", Toast.LENGTH_SHORT).show());
-    }
-
-    private void updateTheme() {
-        if (isUser) {
-            btnUser.setBackgroundColor(BLUE_MAIN);
-            btnUser.setTextColor(0xFFFFFFFF);
-            btnAdmin.setBackgroundColor(COLOR_TRANS);
-            btnAdmin.setTextColor(BLUE_MAIN);
-        } else {
-            btnAdmin.setBackgroundColor(BLUE_MAIN);
-            btnAdmin.setTextColor(0xFFFFFFFF);
-            btnUser.setBackgroundColor(COLOR_TRANS);
-            btnUser.setTextColor(BLUE_MAIN);
-        }
     }
 }
