@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自定义图片消消乐</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            width: 100%;
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+        
+        .game-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+            width: 100%;
+        }
+        
+        .left-panel {
+            flex: 1;
+            min-width: 300px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .right-panel {
+            flex: 2;
+            min-width: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .upload-section {
+            margin-bottom: 25px;
+        }
+        
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 8px;
+        }
+        
+        .upload-area {
+            border: 3px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 25px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 15px;
+        }
+        
+        .upload-area:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .upload-area i {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .preview-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .preview-img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+        }
+        
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        
+        .score-box, .time-box, .moves-box {
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 15px 25px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 120px;
+        }
+        
+        .info-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        
+        .info-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+        
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 5px;
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .tile {
+            width: 70px;
+            height: 70px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .tile:hover {
+            transform: scale(1.05);
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .tile img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+        
+        .tile.selected {
+            border: 3px solid #FFD700;
+            transform: scale(1.05);
+        }
+        
+        .tile.empty {
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+        }
+        
+        .tile.empty img {
+            display: none;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #4CC9F0;
+            color: #1a1a2e;
+        }
+        
+        .btn-primary:hover {
+            background-color: #3aa8d0;
+            transform: translateY(-3px);
+        }
+        
+        .btn-secondary {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-3px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .instructions {
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 25px;
+            width: 100%;
+        }
+        
+        .instructions h3 {
+            margin-bottom: 10px;
+        }
+        
+        .instructions ul {
+            padding-left: 20px;
+            line-height: 1.6;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+        }
+        
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        .game-over-content {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+        
+        .game-over h2 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        
+        .game-over p {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 900px) {
+            .game-container {
+                flex-direction: column;
+            }
+            
+            .left-panel, .right-panel {
+                width: 100%;
+            }
+            
+            .tile {
+                width: 55px;
+                height: 55px;
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .game-board {
+                grid-template-columns: repeat(6, 1fr);
+            }
+            
+            .tile {
+                width: 45px;
+                height: 45px;
+            }
+            
+            .game-info {
+                flex-direction: column;
+                gap: 15px;
+                align-items: center;
+            }
+        }
+        
+        .match-animation {
+            animation: matchEffect 0.5s ease-out;
+        }
+        
+        @keyframes matchEffect {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .combo-counter {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 4rem;
+            font-weight: bold;
+            color: #FFD700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+            pointer-events: none;
+            opacity: 0;
+            z-index: 50;
+            animation: comboAnimation 1s ease-out;
+        }
+        
+        @keyframes comboAnimation {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>自定义图片消消乐</h1>
+            <p class="subtitle">上传您喜欢的图片，开始匹配消除游戏！</p>
+        </header>
+        
+        <div class="game-container">
+            <div class="left-panel">
+                <div class="upload-section">
+                    <h2><i class="fas fa-upload"></i> 上传图片</h2>
+                    <div class="upload-area" id="uploadArea">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>点击或拖拽上传图片 (至少3张)</p>
+                        <p class="info-label">支持 JPG, PNG, GIF 格式</p>
+                        <input type="file" id="fileInput" class="file-input" accept="image/*" multiple>
+                    </div>
+                    
+                    <div class="preview-container" id="previewContainer">
+                        <!-- 图片预览将在这里显示 -->
+                    </div>
+                    
+                    <div class="controls">
+                        <button class="btn btn-primary" id="startBtn">
+                            <i class="fas fa-play"></i> 开始游戏
+                        </button>
+                        <button class="btn btn-secondary" id="resetBtn">
+                            <i class="fas fa-redo"></i> 重新开始
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="instructions">
+                    <h3><i class="fas fa-info-circle"></i> 游戏说明</h3>
+                    <ul>
+                        <li>1. 上传至少3张图片开始游戏</li>
+                        <li>2. 点击选择第一个方块，然后点击相邻方块进行交换</li>
+                        <li>3. 匹配3个或更多相同图片即可消除</li>
+                        <li>4. 消除的方块越多，得分越高</li>
+                        <li>5. 连续匹配可获得连击加分</li>
+                        <li>6. 游戏时间有限，请在时间内获得尽可能高的分数</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="right-panel">
+                <div class="game-info">
+                    <div class="score-box">
+                        <div class="info-value" id="score">0</div>
+                        <div class="info-label">分数</div>
+                    </div>
+                    <div class="time-box">
+                        <div class="info-value" id="time">90</div>
+                        <div class="info-label">剩余时间</div>
+                    </div>
+                    <div class="moves-box">
+                        <div class="info-value" id="moves">15</div>
+                        <div class="info-label">剩余步数</div>
+                    </div>
+                </div>
+                
+                <div class="game-board" id="gameBoard">
+                    <!-- 游戏板将在这里动态生成 -->
+                </div>
+                
+                <div class="controls">
+                    <button class="btn btn-secondary" id="hintBtn">
+                        <i class="fas fa-lightbulb"></i> 提示
+                    </button>
+                    <button class="btn btn-secondary" id="shuffleBtn">
+                        <i class="fas fa-random"></i> 重新排列
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="game-over" id="gameOver">
+        <div class="game-over-content">
+            <h2 id="gameOverTitle">游戏结束</h2>
+            <p>您的最终得分: <span id="finalScore">0</span></p>
+            <p id="gameOverMessage">时间到了！</p>
+            <div class="controls">
+                <button class="btn btn-primary" id="restartBtn">
+                    <i class="fas fa-redo"></i> 再玩一次
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 游戏状态变量
+        let gameState = {
+            score: 0,
+            timeLeft: 90,
+            movesLeft: 15,
+            gameActive: false,
+            selectedTile: null,
+            images: [],
+            board: [],
+            timer: null,
+            combo: 0,
+            defaultImages: [
+                'https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=150&h=150&fit=crop&crop=face',
+                'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=150&h=150&fit=crop&crop=face',
+                'https://images.unsplash.com/photo-1552053831-71594a27632d?w=150&h=150&fit=crop',
+                'https://images.unsplash.com/photo-1568572933382-74d440642117?w=150&h=150&fit=crop',
+                'https://images.unsplash.com/photo-1514888286974-6d03bde4ba04?w=150&h=150&fit=crop',
+                'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=150&h=150&fit=crop'
+            ]
+        };
+
+        // DOM元素
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const startBtn = document.getElementById('startBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const gameBoard = document.getElementById('gameBoard');
+        const scoreElement = document.getElementById('score');
+        const timeElement = document.getElementById('time');
+        const movesElement = document.getElementById('moves');
+        const hintBtn = document.getElementById('hintBtn');
+        const shuffleBtn = document.getElementById('shuffleBtn');
+        const gameOver = document.getElementById('gameOver');
+        const finalScore = document.getElementById('finalScore');
+        const gameOverTitle = document.getElementById('gameOverTitle');
+        const gameOverMessage = document.getElementById('gameOverMessage');
+        const restartBtn = document.getElementById('restartBtn');
+
+        // 初始化事件监听器
+        function initEventListeners() {
+            // 文件上传事件
+            uploadArea.addEventListener('click', () => fileInput.click());
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
+            });
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.style.backgroundColor = '';
+            });
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.style.backgroundColor = '';
+                if (e.dataTransfer.files.length > 0) {
+                    handleFiles(e.dataTransfer.files);
+                }
+            });
+            
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFiles(e.target.files);
+                }
+            });
+            
+            // 游戏控制按钮
+            startBtn.addEventListener('click', startGame);
+            resetBtn.addEventListener('click', resetGame);
+            hintBtn.addEventListener('click', showHint);
+            shuffleBtn.addEventListener('click', shuffleBoard);
+            restartBtn.addEventListener('click', restartGame);
+        }
+
+        // 处理上传的文件
+        function handleFiles(files) {
+            const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/jpg'];
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                
+                if (!validTypes.includes(file.type)) {
+                    alert(`文件 "${file.name}" 不是有效的图片格式。请上传 JPG, PNG 或 GIF 格式的图片。`);
+                    continue;
+                }
+                
+                if (gameState.images.length >= 6) {
+                    alert('最多只能上传6张图片。');
+                    break;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    gameState.images.push(e.target.result);
+                    updateImagePreview();
+                    
+                    // 如果已经上传了至少3张图片，启用开始按钮
+                    if (gameState.images.length >= 3) {
+                        startBtn.disabled = false;
+                        startBtn.title = "点击开始游戏";
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+            
+            fileInput.value = '';
+        }
+
+        // 更新图片预览
+        function updateImagePreview() {
+            previewContainer.innerHTML = '';
+            
+            if (gameState.images.length === 0) {
+                const emptyMsg = document.createElement('p');
+                emptyMsg.textContent = '还没有上传图片';
+                emptyMsg.style.textAlign = 'center';
+                emptyMsg.style.width = '100%';
+                emptyMsg.style.opacity = '0.7';
+                previewContainer.appendChild(emptyMsg);
+                
+                // 禁用开始按钮
+                startBtn.disabled = true;
+                startBtn.title = "请先上传至少3张图片";
+                return;
+            }
+            
+            gameState.images.forEach((imgSrc, index) => {
+                const img = document.createElement('img');
+                img.src = imgSrc;
+                img.className = 'preview-img';
+                img.title = `点击删除此图片`;
+                img.addEventListener('click', () => {
+                    gameState.images.splice(index, 1);
+                    updateImagePreview();
+                });
+                previewContainer.appendChild(img);
+            });
+        }
+
+        // 开始游戏
+        function startGame() {
+            if (gameState.gameActive) return;
+            
+            // 如果没有上传图片，使用默认图片
+            if (gameState.images.length < 3) {
+                const useDefault = confirm('请上传至少3张图片，或使用默认图片开始游戏。是否使用默认图片？');
+                if (useDefault) {
+                    gameState.images = [...gameState.defaultImages];
+                    updateImagePreview();
+                } else {
+                    return;
+                }
+            }
+            
+            // 初始化游戏状态
+            gameState.score = 0;
+            gameState.timeLeft = 90;
+            gameState.movesLeft = 15;
+            gameState.gameActive = true;
+            gameState.selectedTile = null;
+            gameState.combo = 0;
+            
+            // 更新UI
+            scoreElement.textContent = gameState.score;
+            timeElement.textContent = gameState.timeLeft;
+            movesElement.textContent = gameState.movesLeft;
+            
+            // 生成游戏板
+            generateBoard();
+            
+            // 启动计时器
+            gameState.timer = setInterval(updateTimer, 1000);
+            
+            // 禁用开始按钮，启用其他按钮
+            startBtn.disabled = true;
+            startBtn.style.opacity = '0.5';
+            startBtn.style.cursor = 'not-allowed';
+            
+            // 启用游戏控制按钮
+            hintBtn.disabled = false;
+            shuffleBtn.disabled = false;
+        }
+
+        // 生成游戏板
+        function generateBoard() {
+            gameBoard.innerHTML = '';
+            gameState.board = [];
+            
+            // 创建6x6的游戏板
+            for (let row = 0; row < 6; row++) {
+                gameState.board[row] = [];
+                for (let col = 0; col < 6; col++) {
+                    // 随机选择一个图片
+                    const imgIndex = Math.floor(Math.random() * gameState.images.length);
+                    const tileData = {
+                        row,
+                        col,
+                        imgIndex,
+                        element: null,
+                        isEmpty: false
+                    };
+                    
+                    gameState.board[row][col] = tileData;
+                    
+                    // 创建方块元素
+                    const tile = createTileElement(row, col, imgIndex);
+                    
+                    gameBoard.appendChild(tile);
+                    tileData.element = tile;
+                }
+            }
+            
+            // 确保没有初始匹配
+            while (checkForMatches().length > 0) {
+                shuffleBoard();
+            }
+        }
+
+        // 创建方块元素
+        function createTileElement(row, col, imgIndex) {
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.dataset.row = row;
+            tile.dataset.col = col;
+            
+            // 创建图片元素
+            const img = document.createElement('img');
+            img.src = gameState.images[imgIndex];
+            img.alt = `图片 ${imgIndex + 1}`;
+            tile.appendChild(img);
+            
+            // 添加点击事件
+            tile.addEventListener('click', () => selectTile(row, col));
+            
+            return tile;
+        }
+
+        // 选择方块
+        function selectTile(row, col) {
+            if (!gameState.gameActive) return;
+            
+            const tile = gameState.board[row][col].element;
+            
+            // 如果之前没有选择任何方块
+            if (!gameState.selectedTile) {
+                gameState.selectedTile = { row, col };
+                tile.classList.add('selected');
+                return;
+            }
+            
+            // 如果选择了同一个方块，取消选择
+            if (gameState.selectedTile.row === row && gameState.selectedTile.col === col) {
+                gameState.selectedTile = null;
+                tile.classList.remove('selected');
+                return;
+            }
+            
+            // 如果选择的是相邻方块
+            const prevRow = gameState.selectedTile.row;
+            const prevCol = gameState.selectedTile.col;
+            
+            // 检查是否相邻
+            const isAdjacent = 
+                (Math.abs(prevRow - row) === 1 && prevCol === col) ||
+                (Math.abs(prevCol - col) === 1 && prevRow === row);
+            
+            if (isAdjacent) {
+                // 交换方块
+                swapTiles(prevRow, prevCol, row, col);
+                
+                // 检查匹配
+                const matches = checkForMatches();
+                
+                if (matches.length > 0) {
+                    // 有匹配，更新分数
+                    const matchScore = matches.length * 10 * (gameState.combo + 1);
+                    updateScore(matchScore);
+                    
+                    // 显示连击效果
+                    if (gameState.combo > 0) {
+                        showComboEffect(gameState.combo);
+                    }
+                    
+                    // 增加连击数
+                    gameState.combo++;
+                    
+                    // 移除匹配的方块
+                    removeMatches(matches);
+                    
+                    // 减少步数
+                    gameState.movesLeft--;
+                    movesElement.textContent = gameState.movesLeft;
+                    
+                    // 检查游戏是否结束（步数用完）
+                    if (gameState.movesLeft <= 0) {
+                        endGame(false, '步数用完了！');
+                        return;
+                    }
+                    
+                    // 填充空缺
+                    setTimeout(() => {
+                        fillEmptySpaces();
+                    }, 500);
+                } else {
+                    // 没有匹配，交换回来
+                    setTimeout(() => {
+                        swapTiles(row, col, prevRow, prevCol);
+                        // 重置连击数
+                        gameState.combo = 0;
+                    }, 300);
+                }
+                
+                // 取消选择
+                gameState.board[prevRow][prevCol].element.classList.remove('selected');
+                gameState.selectedTile = null;
+            } else {
+                // 选择新的方块
+                gameState.board[prevRow][prevCol].element.classList.remove('selected');
+                gameState.selectedTile = { row, col };
+                tile.classList.add('selected');
+            }
+        }
+
+        // 交换两个方块
+        function swapTiles(row1, col1, row2, col2) {
+            const tile1 = gameState.board[row1][col1];
+            const tile2 = gameState.board[row2][col2];
+            
+            // 交换数据
+            const tempImgIndex = tile1.imgIndex;
+            tile1.imgIndex = tile2.imgIndex;
+            tile2.imgIndex = tempImgIndex;
+            
+            // 更新UI
+            tile1.element.querySelector('img').src = gameState.images[tile1.imgIndex];
+            tile2.element.querySelector('img').src = gameState.images[tile2.imgIndex];
+            
+            // 添加动画效果
+            tile1.element.style.transform = 'scale(1.1)';
+            tile2.element.style.transform = 'scale(1.1)';
+            
+            setTimeout(() => {
+                tile1.element.style.transform = '';
+                tile2.element.style.transform = '';
+            }, 300);
+        }
+
+        // 检查匹配
+        function checkForMatches() {
+            const matches = [];
+            const visited = new Set();
+            
+            // 检查水平匹配
+            for (let row = 0; row < 6; row++) {
+                for (let col = 0; col < 4; col++) {
+                    const imgIndex = gameState.board[row][col].imgIndex;
+                    if (imgIndex === gameState.board[row][col+1].imgIndex && 
+                        imgIndex === gameState.board[row][col+2].imgIndex) {
+                        
+                        // 找到至少3个匹配
+                        let matchEnd = col + 2;
+                        while (matchEnd < 5 && gameState.board[row][matchEnd+1].imgIndex === imgIndex) {
+                            matchEnd++;
+                        }
+                        
+                        // 添加匹配的方块
+                        for (let c = col; c <= matchEnd; c++) {
+                            const key = `${row},${c}`;
+                            if (!visited.has(key)) {
+                                matches.push({row, col: c});
+                                visited.add(key);
+                            }
+                        }
+                        
+                        col = matchEnd;
+                    }
+                }
+            }
+            
+            // 检查垂直匹配
+            for (let col = 0; col < 6; col++) {
+                for (let row = 0; row < 4; row++) {
+                    const imgIndex = gameState.board[row][col].imgIndex;
+                    if (imgIndex === gameState.board[row+1][col].imgIndex && 
+                        imgIndex === gameState.board[row+2][col].imgIndex) {
+                        
+                        // 找到至少3个匹配
+                        let matchEnd = row + 2;
+                        while (matchEnd < 5 && gameState.board[matchEnd+1][col].imgIndex === imgIndex) {
+                            matchEnd++;
+                        }
+                        
+                        // 添加匹配的方块
+                        for (let r = row; r <= matchEnd; r++) {
+                            const key = `${r},${col}`;
+                            if (!visited.has(key)) {
+                                matches.push({row: r, col});
+                                visited.add(key);
+                            }
+                        }
+                        
+                        row = matchEnd;
+                    }
+                }
+            }
+            
+            return matches;
+        }
+
+        // 移除匹配的方块
+        function removeMatches(matches) {
+            matches.forEach(match => {
+                const { row, col } = match;
+                const tile = gameState.board[row][col].element;
+                
+                // 添加消除动画
+                tile.classList.add('match-animation');
+                
+                setTimeout(() => {
+                    // 标记为空
+                    gameState.board[row][col].isEmpty = true;
+                    tile.classList.add('empty');
+                    tile.classList.remove('match-animation');
+                    
+                    // 隐藏图片
+                    const img = tile.querySelector('img');
+                    if (img) {
+                        img.style.display = 'none';
+                    }
+                }, 300);
+            });
+        }
+
+        // 填充空缺
+        function fillEmptySpaces() {
+            let newMatches = [];
+            
+            // 将空缺上方的方块下移
+            for (let col = 0; col < 6; col++) {
+                let emptySpaces = 0;
+                
+                for (let row = 5; row >= 0; row--) {
+                    if (gameState.board[row][col].isEmpty) {
+                        emptySpaces++;
+                    } else if (emptySpaces > 0) {
+                        // 将方块下移
+                        const newRow = row + emptySpaces;
+                        const tile = gameState.board[row][col];
+                        const newTile = gameState.board[newRow][col];
+                        
+                        // 交换数据
+                        newTile.imgIndex = tile.imgIndex;
+                        newTile.isEmpty = false;
+                        
+                        // 更新UI
+                        const img = newTile.element.querySelector('img');
+                        img.src = gameState.images[tile.imgIndex];
+                        img.style.display = 'block';
+                        newTile.element.classList.remove('empty');
+                        
+                        // 动画效果
+                        newTile.element.style.transform = `translateY(${(emptySpaces * -70)}px)`;
+                        setTimeout(() => {
+                            newTile.element.style.transform = '';
+                        }, 300);
+                        
+                        // 清空原来的位置
+                        tile.isEmpty = true;
+                        tile.element.classList.add('empty');
+                        tile.element.querySelector('img').style.display = 'none';
+                    }
+                }
+                
+                // 在顶部生成新方块
+                for (let row = 0; row < emptySpaces; row++) {
+                    const imgIndex = Math.floor(Math.random() * gameState.images.length);
+                    const tile = gameState.board[row][col];
+                    
+                    tile.imgIndex = imgIndex;
+                    tile.isEmpty = false;
+                    
+                    // 更新UI
+                    const img = tile.element.querySelector('img');
+                    img.src = gameState.images[imgIndex];
+                    img.style.display = 'block';
+                    tile.element.classList.remove('empty');
+                    
+                    // 添加下落动画
+                    tile.element.style.transform = 'translateY(-100px)';
+                    tile.element.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        tile.element.style.transition = 'transform 0.5s, opacity 0.5s';
+                        tile.element.style.transform = '';
+                        tile.element.style.opacity = '1';
+                    }, row * 100);
+                    
+                    setTimeout(() => {
+                        tile.element.style.transition = '';
+                    }, 500 + row * 100);
+                }
+            }
+            
+            // 检查是否有新的匹配
+            setTimeout(() => {
+                newMatches = checkForMatches();
+                if (newMatches.length > 0) {
+                    // 有新的匹配，继续连击
+                    const matchScore = newMatches.length * 10 * (gameState.combo + 1);
+                    updateScore(matchScore);
+                    
+                    // 显示连击效果
+                    showComboEffect(gameState.combo);
+                    
+                    gameState.combo++;
+                    removeMatches(newMatches);
+                    setTimeout(fillEmptySpaces, 500);
+                } else {
+                    // 没有新的匹配，重置连击数
+                    gameState.combo = 0;
+                }
+            }, 800);
+        }
+
+        // 显示连击效果
+        function showComboEffect(combo) {
+            if (combo <= 0) return;
+            
+            const comboText = document.createElement('div');
+            comboText.className = 'combo-counter';
+            comboText.textContent = `连击 x${combo + 1}`;
+            document.body.appendChild(comboText);
+            
+            setTimeout(() => {
+                document.body.removeChild(comboText);
+            }, 1000);
+        }
+
+        // 更新分数
+        function updateScore(points) {
+            gameState.score += points;
+            scoreElement.textContent = gameState.score;
+            
+            // 添加分数动画
+            scoreElement.style.transform = 'scale(1.3)';
+            setTimeout(() => {
+                scoreElement.style.transform = '';
+            }, 300);
+        }
+
+        // 更新计时器
+        function updateTimer() {
+            if (!gameState.gameActive) return;
+            
+            gameState.timeLeft--;
+            timeElement.textContent = gameState.timeLeft;
+            
+            // 时间紧迫时改变颜色
+            if (gameState.timeLeft <= 10) {
+                timeElement.style.color = '#FF6B6B';
+                timeElement.style.animation = 'pulse 1s infinite';
+            }
+            
+            // 时间到，游戏结束
+            if (gameState.timeLeft <= 0) {
+                endGame(false, '时间到了！');
+            }
+        }
+
+        // 显示提示
+        function showHint() {
+            if (!gameState.gameActive) return;
+            
+            // 寻找可能的匹配
+            for (let row = 0; row < 6; row++) {
+                for (let col = 0; col < 6; col++) {
+                    // 检查与右侧方块交换
+                    if (col < 5) {
+                        swapTiles(row, col, row, col+1);
+                        if (checkForMatches().length > 0) {
+                            // 找到可能的匹配，高亮显示
+                            gameState.board[row][col].element.style.boxShadow = '0 0 15px #FFD700';
+                            gameState.board[row][col+1].element.style.boxShadow = '0 0 15px #FFD700';
+                            
+                            // 3秒后取消高亮
+                            setTimeout(() => {
+                                gameState.board[row][col].element.style.boxShadow = '';
+                                gameState.board[row][col+1].element.style.boxShadow = '';
+                            }, 3000);
+                            
+                            // 交换回来
+                            setTimeout(() => swapTiles(row, col, row, col+1), 100);
+                            return;
+                        }
+                        // 交换回来
+                        setTimeout(() => swapTiles(row, col, row, col+1), 100);
+                    }
+                    
+                    // 检查与下方方块交换
+                    if (row < 5) {
+                        swapTiles(row, col, row+1, col);
+                        if (checkForMatches().length > 0) {
+                            // 找到可能的匹配，高亮显示
+                            gameState.board[row][col].element.style.boxShadow = '0 0 15px #FFD700';
+                            gameState.board[row+1][col].element.style.boxShadow = '0 0 15px #FFD700';
+                            
+                            // 3秒后取消高亮
+                            setTimeout(() => {
+                                gameState.board[row][col].element.style.boxShadow = '';
+                                gameState.board[row+1][col].element.style.boxShadow = '';
+                            }, 3000);
+                            
+                            // 交换回来
+                            setTimeout(() => swapTiles(row, col, row+1, col), 100);
+                            return;
+                        }
+                        // 交换回来
+                        setTimeout(() => swapTiles(row, col, row+1, col), 100);
+                    }
+                }
+            }
+            
+            // 没有找到匹配，重新排列
+            alert('没有找到可能的匹配，尝试重新排列！');
+        }
+
+        // 重新排列游戏板
+        function shuffleBoard() {
+            if (!gameState.gameActive) return;
+            
+            // 创建新的随机排列
+            const allTiles = [];
+            for (let row = 0; row < 6; row++) {
+                for (let col = 0; col < 6; col++) {
+                    allTiles.push({
+                        imgIndex: gameState.board[row][col].imgIndex,
+                        isEmpty: gameState.board[row][col].isEmpty
+                    });
+                }
+            }
+            
+            // 随机打乱
+            for (let i = allTiles.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [allTiles[i], allTiles[j]] = [allTiles[j], allTiles[i]];
+            }
+            
+            // 更新游戏板
+            let index = 0;
+            for (let row = 0; row < 6; row++) {
+                for (let col = 0; col < 6; col++) {
+                    const tileData = allTiles[index];
+                    gameState.board[row][col].imgIndex = tileData.imgIndex;
+                    gameState.board[row][col].isEmpty = tileData.isEmpty;
+                    
+                    const tile = gameState.board[row][col].element;
+                    const img = tile.querySelector('img');
+                    
+                    if (tileData.isEmpty) {
+                        tile.classList.add('empty');
+                        img.style.display = 'none';
+                    } else {
+                        tile.classList.remove('empty');
+                        img.src = gameState.images[tileData.imgIndex];
+                        img.style.display = 'block';
+                    }
+                    
+                    // 添加动画
+                    tile.style.transform = 'rotateY(180deg)';
+                    
+                    setTimeout(() => {
+                        tile.style.transform = '';
+                    }, 300 + (row * 50 + col * 5));
+                    
+                    index++;
+                }
+            }
+            
+            // 确保没有初始匹配
+            setTimeout(() => {
+                if (checkForMatches().length > 0) {
+                    shuffleBoard();
+                }
+            }, 1000);
+        }
+
+        // 结束游戏
+        function endGame(isWin, message) {
+            gameState.gameActive = false;
+            clearInterval(gameState.timer);
+            
+            // 更新游戏结束界面
+            finalScore.textContent = gameState.score;
+            gameOverTitle.textContent = isWin ? '恭喜！' : '游戏结束';
+            gameOverMessage.textContent = message;
+            
+            // 显示游戏结束界面
+            gameOver.style.display = 'flex';
+            
+            // 启用开始按钮
+            startBtn.disabled = false;
+            startBtn.style.opacity = '1';
+            startBtn.style.cursor = 'pointer';
+            startBtn.title = "点击开始游戏";
+            
+            // 禁用游戏控制按钮
+            hintBtn.disabled = true;
+            shuffleBtn.disabled = true;
+        }
+
+        // 重置游戏
+        function resetGame() {
+            gameState.gameActive = false;
+            clearInterval(gameState.timer);
+            
+            // 重置游戏状态
+            gameState.score = 0;
+            gameState.timeLeft = 90;
+            gameState.movesLeft = 15;
+            gameState.selectedTile = null;
+            gameState.combo = 0;
+            
+            // 更新UI
+            scoreElement.textContent = gameState.score;
+            timeElement.textContent = gameState.timeLeft;
+            movesElement.textContent = gameState.movesLeft;
+            timeElement.style.color = '';
+            timeElement.style.animation = '';
+            
+            // 清空游戏板
+            gameBoard.innerHTML = '<p style="text-align:center; padding: 40px;">请点击"开始游戏"按钮</p>';
+            
+            // 启用开始按钮
+            startBtn.disabled = gameState.images.length < 3;
+            startBtn.style.opacity = gameState.images.length < 3 ? '0.5' : '1';
+            startBtn.style.cursor = gameState.images.length < 3 ? 'not-allowed' : 'pointer';
+            startBtn.title = gameState.images.length < 3 ? "请先上传至少3张图片" : "点击开始游戏";
+            
+            // 禁用游戏控制按钮
+            hintBtn.disabled = true;
+            shuffleBtn.disabled = true;
+            
+            // 隐藏游戏结束界面
+            gameOver.style.display = 'none';
+        }
+
+        // 重新开始游戏
+        function restartGame() {
+            gameOver.style.display = 'none';
+            resetGame();
+            startGame();
+        }
+
+        // 初始化游戏
+        function initGame() {
+            initEventListeners();
+            updateImagePreview();
+            
+            // 初始禁用游戏控制按钮
+            hintBtn.disabled = true;
+            shuffleBtn.disabled = true;
+        }
+
+        // 页面加载完成后初始化游戏
+        window.addEventListener('DOMContentLoaded', initGame);
+    </script>
+</body>
+</html>
