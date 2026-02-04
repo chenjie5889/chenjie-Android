@@ -89,8 +89,9 @@ CREATE TABLE `medication_logs` (
   `take_time` VARCHAR(10) COMMENT '服药时间（HH:mm）',
   `log_date` DATE NOT NULL COMMENT '打卡日期',
   `status` INT COMMENT '0:漏服(红), 1:按时(蓝)',
-  `created_at` DATE DEFAULT (CURRENT_DATE) COMMENT '记录创建日期',
-  UNIQUE KEY `uk_user_date_medicine` (`user_id`, `log_date`, `medicine_name`),
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
+  -- 修改唯一约束：同一用户同一天同一药品同一时间只能记录一次
+  UNIQUE KEY `uk_user_date_medicine_time` (`user_id`, `log_date`, `medicine_name`, `take_time`),
   FOREIGN KEY (`user_id`) REFERENCES users(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

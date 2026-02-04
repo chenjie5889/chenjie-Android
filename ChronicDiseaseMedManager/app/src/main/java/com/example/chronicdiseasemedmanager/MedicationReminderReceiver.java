@@ -38,13 +38,13 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
     private static final String CHANNEL_ID = "medication_reminder";
     private static final String ACTION_MEDICATION_TAKEN = "ACTION_MEDICATION_TAKEN";
     private static final String ACTION_LATER_REMINDER = "ACTION_LATER_REMINDER";
-    private static final String ACTION_MISSED_MEDICATION = "ACTION_MISSED_MEDICATION"; // 新增：漏服操作
+    private static final String ACTION_MISSED_MEDICATION = "ACTION_MISSED_MEDICATION";
 
     // 定义提醒类型
     private static final String EXTRA_REMINDER_TYPE = "reminder_type";
     private static final int REMINDER_TYPE_FIRST = 1;    // 第一次提醒
     private static final int REMINDER_TYPE_SECOND = 2;   // 第二次提醒（2分钟后）
-    private static final int REMINDER_TYPE_MISSED = 3;   // 漏服记录（5分钟后） // 新增
+    private static final int REMINDER_TYPE_MISSED = 3;   // 漏服记录（5分钟后）
 
     // 在广播接收器中定义独立的响应类
     public static class SmsResponse {
@@ -85,7 +85,7 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
         } else if (ACTION_LATER_REMINDER.equals(action)) {
             handleLaterReminder(context, intent);
             return;
-        } else if (ACTION_MISSED_MEDICATION.equals(action)) { // 新增：处理漏服
+        } else if (ACTION_MISSED_MEDICATION.equals(action)) {
             handleMissedMedication(context, intent);
             return;
         }
@@ -101,33 +101,37 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
         int hour = intent.getIntExtra("hour", 8);
         int minute = intent.getIntExtra("minute", 0);
         long medicationId = intent.getLongExtra("medication_id", 0);
-
-        // 新增：获取计划服药时间（用于计算5分钟超时）
         String plannedTime = intent.getStringExtra("planned_time");
 
         Log.d(TAG, "药品: " + medicineName + ", 剂量: " + dosage + ", 时间: " + timeLabel +
-                ", 请求码: " + requestCode + ", 提醒类型: " + getReminderTypeText(reminderType));
+                ", 请求码: " + requestCode + ", 提醒类型: " + getReminderTypeText(reminderType) +
+                ", 计划时间: " + plannedTime);
 
         if (reminderType == REMINDER_TYPE_FIRST) {
             // 第一次提醒
             // 1. 自动设置明天的相同提醒
-            scheduleTomorrowReminder(context, hour, minute, medicineName, dosage, timeLabel, requestCode, medicationId);
+            scheduleTomorrowReminder(context, hour, minute, medicineName, dosage,
+                    timeLabel, requestCode, medicationId, plannedTime);
 
             // 2. 设置2分钟后的第二次提醒
-            scheduleSecondReminder(context, medicineName, dosage, timeLabel, requestCode, hour, minute, medicationId);
+            scheduleSecondReminder(context, medicineName, dosage, timeLabel,
+                    requestCode, hour, minute, medicationId, plannedTime);
 
-            // 3. 新增：设置5分钟后的漏服检查
-            scheduleMissedMedicationCheck(context, medicineName, dosage, timeLabel, requestCode, hour, minute, medicationId);
+            // 3. 设置5分钟后的漏服检查
+            scheduleMissedMedicationCheck(context, medicineName, dosage, timeLabel,
+                    requestCode, hour, minute, medicationId, plannedTime);
 
             // 4. 显示通知
-            showNotification(context, medicineName, dosage, timeLabel, requestCode, false, REMINDER_TYPE_FIRST);
+            showNotification(context, medicineName, dosage, timeLabel, requestCode,
+                    false, REMINDER_TYPE_FIRST, plannedTime);
 
             // 5. 显示Toast
             Toast.makeText(context, "用药提醒：" + medicineName + " 时间到了", Toast.LENGTH_LONG).show();
 
         } else if (reminderType == REMINDER_TYPE_SECOND) {
             // 第二次提醒（2分钟后）
-            showNotification(context, medicineName, dosage, "再次提醒", requestCode, true, REMINDER_TYPE_SECOND);
+            showNotification(context, medicineName, dosage, "再次提醒", requestCode,
+                    true, REMINDER_TYPE_SECOND, plannedTime);
             Toast.makeText(context, "再次提醒：" + medicineName + " 请及时服药！", Toast.LENGTH_LONG).show();
 
         } else if (reminderType == REMINDER_TYPE_MISSED) {
@@ -137,26 +141,42 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
     }
 
     /**
+     * 生成唯一的提醒ID（结合请求码和时间）
+     */
+    private int getReminderId(int requestCode, String time) {
+        if (time == null || time.isEmpty()) {
+            return requestCode;
+        }
+        // 使用请求码 + 时间哈希值生成唯一ID
+        int timeHash = time.hashCode();
+        return Math.abs(requestCode * 31 + timeHash) % 100000;
+    }
+
+    /**
      * 处理"已服药"操作
      */
     private void handleMedicationTaken(Context context, Intent intent) {
         String medicineName = intent.getStringExtra("medicine_name");
         int requestCode = intent.getIntExtra("request_code", 0);
         String dosage = intent.getStringExtra("dosage");
-        String plannedTime = intent.getStringExtra("planned_time"); // 新增：获取计划时间
+        String plannedTime = intent.getStringExtra("planned_time");
 
-        Log.d(TAG, "用户点击已服药：" + medicineName + "，剂量：" + dosage + "，计划时间：" + plannedTime);
+        Log.d(TAG, "用户点击已服药：" + medicineName + "，剂量：" + dosage + "，计划时间：" + plannedTime +
+                "，requestCode：" + requestCode);
 
         // 1. 调用API保存服药记录（状态为按时服药）
-        callApiRecordMedication(context, medicineName, dosage, requestCode, plannedTime, 1); // status=1 按时
+        callApiRecordMedication(context, medicineName, dosage, requestCode, plannedTime, 1);
 
         // 2. 取消所有相关提醒（包括漏服检查）
-        cancelAllRelatedReminders(context, requestCode);
+        cancelAllRelatedReminders(context, requestCode, plannedTime);
 
         // 3. 通知需要更新
         NotificationManager notificationManager =
                 (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         notificationManager.cancel(requestCode);
+
+        // 4. 显示确认Toast
+        Toast.makeText(context, medicineName + " 已记录为按时服药", Toast.LENGTH_SHORT).show();
     }
 
     /**
@@ -170,13 +190,14 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
         int hour = intent.getIntExtra("hour", 8);
         int minute = intent.getIntExtra("minute", 0);
 
-        Log.d(TAG, "5分钟已过，自动记录为漏服：" + medicineName + "，计划时间：" + hour + ":" + minute);
+        Log.d(TAG, "5分钟已过，自动记录为漏服：" + medicineName + "，计划时间：" + hour + ":" + minute +
+                "，plannedTime：" + plannedTime);
 
         // 1. 调用API保存服药记录（状态为漏服）
-        callApiRecordMedication(context, medicineName, dosage, requestCode, plannedTime, 0); // status=0 漏服
+        callApiRecordMedication(context, medicineName, dosage, requestCode, plannedTime, 0);
 
         // 2. 取消相关提醒（但保留明天的提醒）
-        cancelMissedCheckReminder(context, requestCode);
+        cancelMissedCheckReminder(context, requestCode, plannedTime);
 
         // 3. 显示通知（可选）
         showMissedNotification(context, medicineName, requestCode);
@@ -186,7 +207,7 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
     }
 
     /**
-     * 修改：调用API保存服药记录，增加status参数
+     * 调用API保存服药记录
      */
     private void callApiRecordMedication(Context context, String medicineName, String dosage,
                                          int requestCode, String plannedTime, int status) {
@@ -229,7 +250,7 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
                     medicineName,
                     today,
                     recordTime,
-                    status  // 状态：1按时，0漏服
+                    status
             );
 
             call.enqueue(new Callback<SmsResponse>() {
@@ -252,7 +273,7 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
     }
 
     /**
-     * 修改：处理API响应，区分按时和漏服
+     * 处理API响应
      */
     private void handleApiResponse(Context context, Response<SmsResponse> response,
                                    String medicineName, int status) {
@@ -261,7 +282,6 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
             if (smsResponse.code == 200) {
                 String statusText = (status == 1) ? "按时服药" : "漏服";
                 Log.d(TAG, "服药记录保存到云端成功: " + medicineName + " (" + statusText + ")");
-                Toast.makeText(context, medicineName + " " + statusText + "记录已保存", Toast.LENGTH_SHORT).show();
 
                 // 可选：发送广播通知其他组件更新UI
                 Intent updateIntent = new Intent("MEDICATION_RECORD_UPDATED");
@@ -269,11 +289,9 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
 
             } else {
                 Log.e(TAG, "保存失败: " + smsResponse.msg);
-                Toast.makeText(context, "保存失败: " + smsResponse.msg, Toast.LENGTH_SHORT).show();
             }
         } else {
             Log.e(TAG, "API响应失败: " + response.code());
-            Toast.makeText(context, "保存失败，请检查网络", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -282,7 +300,8 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
      */
     private void scheduleTomorrowReminder(Context context, int hour, int minute,
                                           String medicineName, String dosage,
-                                          String timeLabel, int requestCode, long medicationId) {
+                                          String timeLabel, int requestCode,
+                                          long medicationId, String plannedTime) {
         try {
             AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
 
@@ -295,7 +314,8 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
             calendar.set(Calendar.MILLISECOND, 0);
 
             Log.d(TAG, "自动设置明天提醒：" + medicineName + " " + hour + ":" + minute +
-                    "，时间：" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                    "，计划时间：" + plannedTime +
+                    "，触发时间：" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
                     .format(calendar.getTime()));
 
             // 创建Intent
@@ -308,7 +328,7 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
             tomorrowIntent.putExtra("hour", hour);
             tomorrowIntent.putExtra("minute", minute);
             tomorrowIntent.putExtra("medication_id", medicationId);
-            tomorrowIntent.putExtra("planned_time", String.format("%02d:%02d", hour, minute)); // 新增：计划时间
+            tomorrowIntent.putExtra("planned_time", plannedTime);
 
             PendingIntent pendingIntent = PendingIntent.getBroadcast(
                     context,
@@ -349,11 +369,11 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
     }
 
     /**
-     * 修改：设置2分钟后的第二次提醒
+     * 设置2分钟后的第二次提醒
      */
     private void scheduleSecondReminder(Context context, String medicineName, String dosage,
                                         String timeLabel, int requestCode,
-                                        int hour, int minute, long medicationId) {
+                                        int hour, int minute, long medicationId, String plannedTime) {
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
 
         // 2分钟后
@@ -368,7 +388,7 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
         secondIntent.putExtra("hour", hour);
         secondIntent.putExtra("minute", minute);
         secondIntent.putExtra("medication_id", medicationId);
-        secondIntent.putExtra("planned_time", String.format("%02d:%02d", hour, minute)); // 新增：计划时间
+        secondIntent.putExtra("planned_time", plannedTime);
 
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 context,
@@ -383,7 +403,7 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
                 pendingIntent
         );
 
-        Log.d(TAG, "已设置2分钟后第二次提醒: " + medicineName);
+        Log.d(TAG, "已设置2分钟后第二次提醒: " + medicineName + " (plannedTime: " + plannedTime + ")");
     }
 
     /**
@@ -391,26 +411,30 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
      */
     private void scheduleMissedMedicationCheck(Context context, String medicineName, String dosage,
                                                String timeLabel, int requestCode,
-                                               int hour, int minute, long medicationId) {
+                                               int hour, int minute, long medicationId, String plannedTime) {
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
 
         // 5分钟后检查是否漏服
         long triggerTime = SystemClock.elapsedRealtime() + TimeUnit.MINUTES.toMillis(5);
 
+        // 生成唯一的requestCode
+        int missedRequestCode = getReminderId(requestCode, plannedTime);
+
         Intent missedIntent = new Intent(context, MedicationReminderReceiver.class);
-        missedIntent.setAction(ACTION_MISSED_MEDICATION); // 使用Action来区分
+        missedIntent.setAction(ACTION_MISSED_MEDICATION);
         missedIntent.putExtra("medicine_name", medicineName);
         missedIntent.putExtra("dosage", dosage);
         missedIntent.putExtra("time_label", timeLabel);
         missedIntent.putExtra("request_code", requestCode);
+        missedIntent.putExtra("missed_request_code", missedRequestCode);
         missedIntent.putExtra("hour", hour);
         missedIntent.putExtra("minute", minute);
         missedIntent.putExtra("medication_id", medicationId);
-        missedIntent.putExtra("planned_time", String.format("%02d:%02d", hour, minute));
+        missedIntent.putExtra("planned_time", plannedTime);
 
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 context,
-                requestCode + 4000, // 使用不同的requestCode（4000系列）
+                missedRequestCode,
                 missedIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
@@ -421,7 +445,8 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
                 pendingIntent
         );
 
-        Log.d(TAG, "已设置5分钟后漏服检查: " + medicineName + " (计划时间: " + hour + ":" + minute + ")");
+        Log.d(TAG, "已设置5分钟后漏服检查: " + medicineName + " (计划时间: " + hour + ":" + minute +
+                "), requestCode: " + missedRequestCode);
     }
 
     /**
@@ -436,10 +461,10 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
         int minute = intent.getIntExtra("minute", 0);
         long medicationId = intent.getLongExtra("medication_id", 0);
 
-        Log.d(TAG, "用户点击稍后提醒：" + medicineName);
+        Log.d(TAG, "用户点击稍后提醒：" + medicineName + "，plannedTime: " + plannedTime);
 
         // 取消之前的漏服检查
-        cancelMissedCheckReminder(context, requestCode);
+        cancelMissedCheckReminder(context, requestCode, plannedTime);
 
         // 设置2分钟后的提醒（重新开始5分钟计时）
         scheduleLaterReminder(context, medicineName, dosage, requestCode, hour, minute, medicationId, plannedTime);
@@ -454,7 +479,7 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
     }
 
     /**
-     * 修改：设置2分钟后的稍后提醒（重新开始5分钟计时）
+     * 设置2分钟后的稍后提醒（重新开始5分钟计时）
      */
     private void scheduleLaterReminder(Context context, String medicineName,
                                        String dosage, int requestCode,
@@ -469,7 +494,7 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
         laterIntent.putExtra("dosage", dosage);
         laterIntent.putExtra("time_label", "稍后提醒");
         laterIntent.putExtra("request_code", requestCode);
-        laterIntent.putExtra(EXTRA_REMINDER_TYPE, REMINDER_TYPE_FIRST); // 重新开始
+        laterIntent.putExtra(EXTRA_REMINDER_TYPE, REMINDER_TYPE_FIRST);
         laterIntent.putExtra("hour", hour);
         laterIntent.putExtra("minute", minute);
         laterIntent.putExtra("medication_id", medicationId);
@@ -477,7 +502,7 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
 
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 context,
-                requestCode + 3000, // 使用不同的requestCode
+                requestCode + 3000,
                 laterIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
@@ -490,15 +515,15 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
 
         // 重新设置5分钟后的漏服检查
         scheduleMissedMedicationCheck(context, medicineName, dosage, "稍后提醒",
-                requestCode, hour, minute, medicationId);
+                requestCode, hour, minute, medicationId, plannedTime);
 
-        Log.d(TAG, "已设置稍后提醒（2分钟后重新开始计时）: " + medicineName);
+        Log.d(TAG, "已设置稍后提醒（2分钟后重新开始计时）: " + medicineName + " (plannedTime: " + plannedTime + ")");
     }
 
     /**
      * 修改：取消所有相关提醒
      */
-    private void cancelAllRelatedReminders(Context context, int requestCode) {
+    private void cancelAllRelatedReminders(Context context, int requestCode, String plannedTime) {
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
 
         // 取消第一次提醒
@@ -510,14 +535,28 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
         // 取消稍后提醒
         cancelPendingIntent(context, alarmManager, requestCode + 3000);
 
-        // 取消漏服检查（新增）
-        cancelPendingIntent(context, alarmManager, requestCode + 4000);
+        // 取消漏服检查
+        cancelMissedCheckReminder(context, requestCode, plannedTime);
 
-        Log.d(TAG, "已取消所有相关提醒，requestCode: " + requestCode);
+        Log.d(TAG, "已取消所有相关提醒，requestCode: " + requestCode + ", plannedTime: " + plannedTime);
     }
 
     /**
-     * 新增：辅助方法取消单个PendingIntent
+     * 取消漏服检查
+     */
+    private void cancelMissedCheckReminder(Context context, int requestCode, String plannedTime) {
+        if (plannedTime == null || plannedTime.isEmpty()) {
+            return;
+        }
+
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        int missedRequestCode = getReminderId(requestCode, plannedTime);
+        cancelPendingIntent(context, alarmManager, missedRequestCode);
+        Log.d(TAG, "已取消漏服检查，requestCode: " + missedRequestCode);
+    }
+
+    /**
+     * 辅助方法取消单个PendingIntent
      */
     private void cancelPendingIntent(Context context, AlarmManager alarmManager, int requestCode) {
         try {
@@ -535,19 +574,11 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
     }
 
     /**
-     * 新增：只取消漏服检查
-     */
-    private void cancelMissedCheckReminder(Context context, int requestCode) {
-        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        cancelPendingIntent(context, alarmManager, requestCode + 4000);
-    }
-
-    /**
-     * 修改：显示通知，增加reminderType参数
+     * 显示通知
      */
     private void showNotification(Context context, String medicineName, String dosage,
                                   String timeLabel, int requestCode,
-                                  boolean isSecondReminder, int reminderType) {
+                                  boolean isSecondReminder, int reminderType, String plannedTime) {
         createNotificationChannel(context);
 
         // 主Intent - 点击通知跳转
@@ -557,6 +588,7 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
         appIntent.putExtra("dosage", dosage);
         appIntent.putExtra("time_label", timeLabel);
         appIntent.putExtra("request_code", requestCode);
+        appIntent.putExtra("planned_time", plannedTime);
         appIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 
         PendingIntent pendingIntent = PendingIntent.getActivity(
@@ -572,7 +604,7 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
         takenIntent.putExtra("medicine_name", medicineName);
         takenIntent.putExtra("dosage", dosage);
         takenIntent.putExtra("request_code", requestCode);
-        takenIntent.putExtra("planned_time", getPlannedTimeFromRequestCode(context, requestCode)); // 新增：传递计划时间
+        takenIntent.putExtra("planned_time", plannedTime);
 
         PendingIntent takenPendingIntent = PendingIntent.getBroadcast(
                 context,
@@ -589,10 +621,10 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
             laterIntent.putExtra("medicine_name", medicineName);
             laterIntent.putExtra("dosage", dosage);
             laterIntent.putExtra("request_code", requestCode);
-            laterIntent.putExtra("planned_time", getPlannedTimeFromRequestCode(context, requestCode));
-            laterIntent.putExtra("hour", getHourFromRequestCode(context, requestCode));
-            laterIntent.putExtra("minute", getMinuteFromRequestCode(context, requestCode));
-            laterIntent.putExtra("medication_id", getMedicationIdFromRequestCode(context, requestCode));
+            laterIntent.putExtra("planned_time", plannedTime);
+            laterIntent.putExtra("hour", getHourFromPlannedTime(plannedTime));
+            laterIntent.putExtra("minute", getMinuteFromPlannedTime(plannedTime));
+            laterIntent.putExtra("medication_id", 1L); // 简化实现
 
             laterPendingIntent = PendingIntent.getBroadcast(
                     context,
@@ -633,7 +665,7 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
     }
 
     /**
-     * 新增：显示漏服通知
+     * 显示漏服通知
      */
     private void showMissedNotification(Context context, String medicineName, int requestCode) {
         createNotificationChannel(context);
@@ -650,32 +682,37 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
 
         NotificationManager notificationManager =
                 (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        notificationManager.notify(requestCode + 5000, builder.build()); // 使用不同的ID
+        notificationManager.notify(requestCode + 5000, builder.build());
     }
 
     /**
-     * 新增：从存储中获取计划时间（简化实现）
+     * 从计划时间中解析小时
      */
-    private String getPlannedTimeFromRequestCode(Context context, int requestCode) {
-        // 这里应该从数据库或SharedPreferences中获取
-        // 简化实现：返回当前时间
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
-        return sdf.format(new java.util.Date());
-    }
-
-    private int getHourFromRequestCode(Context context, int requestCode) {
-        // 简化实现
+    private int getHourFromPlannedTime(String plannedTime) {
+        if (plannedTime != null && plannedTime.contains(":")) {
+            try {
+                String[] parts = plannedTime.split(":");
+                return Integer.parseInt(parts[0]);
+            } catch (Exception e) {
+                return 8;
+            }
+        }
         return 8;
     }
 
-    private int getMinuteFromRequestCode(Context context, int requestCode) {
-        // 简化实现
+    /**
+     * 从计划时间中解析分钟
+     */
+    private int getMinuteFromPlannedTime(String plannedTime) {
+        if (plannedTime != null && plannedTime.contains(":")) {
+            try {
+                String[] parts = plannedTime.split(":");
+                return Integer.parseInt(parts[1]);
+            } catch (Exception e) {
+                return 0;
+            }
+        }
         return 0;
-    }
-
-    private long getMedicationIdFromRequestCode(Context context, int requestCode) {
-        // 简化实现
-        return 1L;
     }
 
     // 辅助方法

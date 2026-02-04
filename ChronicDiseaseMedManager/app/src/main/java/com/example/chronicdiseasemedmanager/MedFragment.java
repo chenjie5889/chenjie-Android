@@ -1345,7 +1345,7 @@ public class MedFragment extends Fragment {
             int hour = Integer.parseInt(parts[0]);
             int minute = Integer.parseInt(parts[1]);
 
-            // 2. 准备 Intent - 第一次提醒
+            // 2. 准备 Intent
             Intent intent = new Intent(requireActivity(), MedicationReminderReceiver.class);
             intent.putExtra("medicine_name", medication.medicineName);
             intent.putExtra("dosage", medication.dosage);
@@ -1353,11 +1353,12 @@ public class MedFragment extends Fragment {
             intent.putExtra("request_code", requestCode);
             intent.putExtra("reminder_type", 1);
 
-            // 关键：传递时间信息，用于自动重设
+            // 关键：传递时间信息，用于区分同一药品的不同服药时间
             intent.putExtra("hour", hour);
             intent.putExtra("minute", minute);
             intent.putExtra("medication_id", medication.id != null ? medication.id : 0L);
-            intent.putExtra("planned_time", timeStr);
+            intent.putExtra("planned_time", timeStr); // 计划服药时间
+
             PendingIntent pendingIntent = PendingIntent.getBroadcast(
                     requireActivity(),
                     requestCode,
@@ -1378,27 +1379,24 @@ public class MedFragment extends Fragment {
                 calendar.add(Calendar.DAY_OF_YEAR, 1);
             }
 
-            // 4. --- 关键修改：使用精确闹钟 ---
-
-            // 检查权限 (Android 12+ 需要 SCHEDULE_EXACT_ALARM 权限)
+            // 4. 设置精确闹钟
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (!alarmManager.canScheduleExactAlarms()) {
-                    Log.e(TAG, "没有精确闹钟权限");
-                    // 实际开发中应该弹窗引导用户去设置页面开启权限
-                    // Intent intent = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
-                    // startActivity(intent);
-                    return;
+                if (alarmManager.canScheduleExactAlarms()) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                            AlarmManager.RTC_WAKEUP,
+                            calendar.getTimeInMillis(),
+                            pendingIntent
+                    );
                 }
+            } else {
+                alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        calendar.getTimeInMillis(),
+                        pendingIntent
+                );
             }
 
-            // 使用 setExactAndAllowWhileIdle (即使在低电量模式也能唤醒)
-            alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    calendar.getTimeInMillis(),
-                    pendingIntent
-            );
-
-            Log.d(TAG, "第一次提醒已设置：" + medication.medicineName + " " + timeLabel + " " + timeStr +
+            Log.d(TAG, "提醒已设置：" + medication.medicineName + " " + timeLabel + " " + timeStr +
                     "，触发时间：" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
                     .format(new Date(calendar.getTimeInMillis())));
 

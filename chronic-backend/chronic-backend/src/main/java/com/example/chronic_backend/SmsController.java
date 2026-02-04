@@ -168,8 +168,10 @@ public SmsResponse recordMedicationTaken(
         log.setUserId(userId);
         log.setLogDate(LocalDate.parse(date));
         log.setStatus(status);
-        log.setMedicineName(medicineName);  // 新增字段
-        log.setTakeTime(time);  // 新增字段
+        log.setMedicineName(medicineName);
+        log.setTakeTime(time);  // 保存具体服药时间
+        
+        // 不再使用唯一约束检查，允许同一药品一天多次记录
         medLogRepository.save(log);
         
         // 2. 记录详细的用药日志
