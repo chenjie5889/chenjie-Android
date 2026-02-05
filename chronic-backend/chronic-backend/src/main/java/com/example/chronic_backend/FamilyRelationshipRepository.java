@@ -28,4 +28,8 @@ public interface FamilyRelationshipRepository extends JpaRepository<FamilyRelati
     // 查找已同意的家属关系
     @Query("SELECT f FROM FamilyRelationship f WHERE (f.userId = :userId OR f.familyUserId = :userId) AND f.status = 1")
     List<FamilyRelationship> findApprovedRelationships(Long userId);
+    
+    // 新增：查找特定状态的关系
+    @Query("SELECT f FROM FamilyRelationship f WHERE ((f.userId = :userId AND f.familyUserId = :familyUserId) OR (f.userId = :familyUserId AND f.familyUserId = :userId)) AND f.status = :status")
+    Optional<FamilyRelationship> findRelationshipBetweenUsers(Long userId, Long familyUserId, Integer status);
 }

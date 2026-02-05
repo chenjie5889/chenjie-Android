@@ -1,3 +1,4 @@
+// FamilyController.java - 修复移除家属功能
 package com.example.chronic_backend;
 
 import com.google.gson.Gson;
@@ -44,9 +45,6 @@ public class FamilyController {
             data.put("nickname", user.getNickname());
             data.put("realName", user.getRealName());
             
-            // 检查是否已经是家属
-            // TODO: 这里需要从请求中获取当前用户ID
-            
             return new SmsResponse(200, "找到用户", new Gson().toJson(data));
         } catch (Exception e) {
             e.printStackTrace();
@@ -90,6 +88,16 @@ public class FamilyController {
                 return new SmsResponse(400, statusMsg, null);
             }
             
+            // 检查对方是否已向自己发送过请求
+            Optional<FamilyRelationship> reverseExisting = familyRepository
+                .findByUserIdAndFamilyUserId(familyUser.getId(), request.getUserId());
+            if (reverseExisting.isPresent()) {
+                FamilyRelationship rel = reverseExisting.get();
+                if (rel.getStatus() == 0) {
+                    return new SmsResponse(400, "对方已向您发送了家属请求，请先处理", null);
+                }
+            }
+            
             // 创建家属关系
             FamilyRelationship relationship = new FamilyRelationship();
             relationship.setUserId(request.getUserId());
@@ -107,8 +115,6 @@ public class FamilyController {
                 permission.setIsGranted(false);
                 permissionRepository.save(permission);
             }
-            
-            // TODO: 这里可以发送推送通知给家属用户
             
             return new SmsResponse(200, "家属请求已发送，等待对方确认", null);
         } catch (Exception e) {
@@ -179,16 +185,12 @@ public class FamilyController {
                 
                 familyRepository.save(relationship);
                 
-                // TODO: 发送通知给请求方
-                
                 return new SmsResponse(200, "已同意家属请求", null);
             } else {
                 // 拒绝请求
                 relationship.setStatus(2);
                 relationship.setConfirmTime(LocalDateTime.now());
                 familyRepository.save(relationship);
-                
-                // TODO: 发送通知给请求方
                 
                 return new SmsResponse(200, "已拒绝家属请求", null);
             }
@@ -212,6 +214,7 @@ public class FamilyController {
                 // 用户是发起方，家属是接收方
                 User familyUser = userRepository.findById(rel.getFamilyUserId()).orElse(null);
                 if (familyUser != null) {
+                    response.setRelationshipId(rel.getId());
                     response.setFamilyId(familyUser.getId());
                     response.setFamilyName(familyUser.getRealName() != null ? familyUser.getRealName() : familyUser.getNickname());
                     response.setFamilyPhone(familyUser.getPhone());
@@ -222,6 +225,7 @@ public class FamilyController {
                 // 用户是接收方，家属是发起方
                 User familyUser = userRepository.findById(rel.getUserId()).orElse(null);
                 if (familyUser != null) {
+                    response.setRelationshipId(rel.getId());
                     response.setFamilyId(familyUser.getId());
                     response.setFamilyName(familyUser.getRealName() != null ? familyUser.getRealName() : familyUser.getNickname());
                     response.setFamilyPhone(familyUser.getPhone());
@@ -238,7 +242,6 @@ public class FamilyController {
                     permissionMap.put(perm.getPermissionType(), perm.getIsGranted());
                 }
                 response.setPermissions(permissionMap);
-                response.setRelationshipId(rel.getId());
             }
             
             responses.add(response);
@@ -251,8 +254,13 @@ public class FamilyController {
     @GetMapping("/familyData")
     public FamilyDataResponse getFamilyData(@RequestParam Long userId, @RequestParam Long familyId) {
         try {
-            // 查找家属关系
+            // 查找家属关系（双向查找）
             Optional<FamilyRelationship> relationship = familyRepository.findByUserIdAndFamilyUserId(userId, familyId);
+            if (!relationship.isPresent()) {
+                // 尝试反向查找（用户可能是接收方）
+                relationship = familyRepository.findByUserIdAndFamilyUserId(familyId, userId);
+            }
+            
             if (!relationship.isPresent() || relationship.get().getStatus() != 1) {
                 return new FamilyDataResponse(403, "无权限访问", null, null, null);
             }
@@ -291,24 +299,43 @@ public class FamilyController {
         }
     }
     
-    // 7. 解除家属关系
+    // 7. 解除家属关系（关键修复）
     @DeleteMapping("/removeFamily")
     public SmsResponse removeFamily(@RequestParam Long userId, @RequestParam Long familyId) {
         try {
-            // 查找家属关系
+            System.out.println("移除家属请求: userId=" + userId + ", familyId=" + familyId);
+            
+            // 查找家属关系（双向查找）
             Optional<FamilyRelationship> relationship = familyRepository.findByUserIdAndFamilyUserId(userId, familyId);
             if (!relationship.isPresent()) {
-                return new SmsResponse(404, "家属关系不存在", null);
+                // 尝试反向查找（用户可能是接收方）
+                relationship = familyRepository.findByUserIdAndFamilyUserId(familyId, userId);
+                if (!relationship.isPresent()) {
+                    return new SmsResponse(404, "家属关系不存在", null);
+                }
             }
             
             FamilyRelationship rel = relationship.get();
-            rel.setStatus(3); // 已解除
+            System.out.println("找到家属关系: id=" + rel.getId() + 
+                             ", userId=" + rel.getUserId() + 
+                             ", familyUserId=" + rel.getFamilyUserId() + 
+                             ", status=" + rel.getStatus());
+            
+            // 验证用户是否有权限移除
+            boolean canRemove = rel.getUserId().equals(userId) || rel.getFamilyUserId().equals(userId);
+            if (!canRemove) {
+                return new SmsResponse(403, "无权解除此家属关系", null);
+            }
+            
+            // 更新关系状态为已解除
+            rel.setStatus(3);
             rel.setConfirmTime(LocalDateTime.now());
             familyRepository.save(rel);
             
-            // TODO: 发送通知给对方
+            // 记录日志
+            System.out.println("家属关系已解除: 关系ID=" + rel.getId());
             
-            return new SmsResponse(200, "已解除家属关系", null);
+            return new SmsResponse(200, "已成功解除家属关系", null);
         } catch (Exception e) {
             e.printStackTrace();
             return new SmsResponse(500, "解除失败: " + e.getMessage(), null);

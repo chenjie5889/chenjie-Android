@@ -27,7 +27,9 @@
             android:layout_marginBottom="16dp"
             android:text="+ 添加家属"
             android:backgroundTint="#3B82F6"
-            android:textColor="#FFFFFF" />
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:fontFamily="sans-serif-medium" />
 
         <!-- 待处理请求部分 -->
         <androidx.cardview.widget.CardView
@@ -36,7 +38,8 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
             app:cardCornerRadius="12dp"
-            app:cardElevation="4dp">
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="#FFFFFF">
 
             <LinearLayout
                 android:id="@+id/layoutPendingRequests"
@@ -52,7 +55,8 @@
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:textColor="#1F2937"
-                    android:layout_marginBottom="12dp" />
+                    android:layout_marginBottom="12dp"
+                    android:fontFamily="sans-serif" />
 
                 <TextView
                     android:id="@+id/tvNoPending"
@@ -63,7 +67,8 @@
                     android:textColor="#6B7280"
                     android:gravity="center"
                     android:padding="16dp"
-                    android:visibility="gone" />
+                    android:visibility="gone"
+                    android:fontFamily="sans-serif" />
 
                 <LinearLayout
                     android:id="@+id/containerPendingList"
@@ -80,7 +85,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:cardCornerRadius="12dp"
-            app:cardElevation="4dp">
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="#FFFFFF">
 
             <LinearLayout
                 android:id="@+id/layoutFamilyList"
@@ -96,7 +102,8 @@
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:textColor="#1F2937"
-                    android:layout_marginBottom="12dp" />
+                    android:layout_marginBottom="12dp"
+                    android:fontFamily="sans-serif" />
 
                 <TextView
                     android:id="@+id/tvNoFamily"
@@ -107,7 +114,8 @@
                     android:textColor="#6B7280"
                     android:gravity="center"
                     android:padding="16dp"
-                    android:visibility="gone" />
+                    android:visibility="gone"
+                    android:fontFamily="sans-serif" />
 
                 <LinearLayout
                     android:id="@+id/containerFamilyList"

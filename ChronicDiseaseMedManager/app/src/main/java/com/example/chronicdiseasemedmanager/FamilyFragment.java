@@ -1,4 +1,3 @@
-// FamilyFragment.java - 修复版本
 package com.example.chronicdiseasemedmanager;
 
 import android.content.Context;
@@ -478,23 +477,30 @@ public class FamilyFragment extends Fragment {
     private void removeFamily(FamilyMemberResponse family) {
         new AlertDialog.Builder(getContext())
                 .setTitle("确认移除")
-                .setMessage("确定要移除家属 " + family.familyName + " 吗？")
+                .setMessage("确定要移除家属 " + family.familyName + " 吗？\n" +
+                        "移除后您将无法查看该家属的健康数据。")
                 .setPositiveButton("确定", (dialog, which) -> {
+                    // 关键修改：调用移除家属接口，传递正确的参数
                     apiService.removeFamily(currentUserId, family.familyId).enqueue(new Callback<SmsResponse>() {
                         @Override
                         public void onResponse(Call<SmsResponse> call, Response<SmsResponse> response) {
                             if (response.isSuccessful() && response.body() != null) {
                                 SmsResponse res = response.body();
-                                Toast.makeText(getContext(), res.msg, Toast.LENGTH_SHORT).show();
-                                loadData(); // 重新加载数据
+                                if (res.code == 200) {
+                                    Toast.makeText(getContext(), res.msg, Toast.LENGTH_SHORT).show();
+                                    loadData(); // 重新加载数据
+                                } else {
+                                    Toast.makeText(getContext(), "移除失败: " + res.msg, Toast.LENGTH_SHORT).show();
+                                }
                             } else {
-                                Toast.makeText(getContext(), "移除失败", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(getContext(), "移除失败: " + response.code(), Toast.LENGTH_SHORT).show();
                             }
                         }
 
                         @Override
                         public void onFailure(Call<SmsResponse> call, Throwable t) {
                             Toast.makeText(getContext(), "网络错误: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                            Log.e(TAG, "移除家属失败: " + t.getMessage());
                         }
                     });
                 })

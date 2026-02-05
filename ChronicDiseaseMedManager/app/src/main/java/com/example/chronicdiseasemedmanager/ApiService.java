@@ -76,6 +76,7 @@ public interface ApiService {
     @POST("api/family/request")
     Call<SmsResponse> sendFamilyRequest(@Body FamilyRequest request);
 
+    // 家属管理接口
     @GET("api/family/pendingRequests")
     Call<List<FamilyRequestResponse>> getPendingRequests(@Query("userId") Long userId);
 

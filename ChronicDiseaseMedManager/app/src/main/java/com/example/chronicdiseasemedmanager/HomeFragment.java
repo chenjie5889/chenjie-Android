@@ -31,7 +31,6 @@ public class HomeFragment extends Fragment {
     private CalendarView calendarView;
     private ApiService apiService;
     private Long currentUserId;
-    private LinearLayout medicationContainer;
     private LinearLayout medicationLogContainer;
     private TextView tvNoMedication;
     private TextView tvNoLogs;
@@ -47,7 +46,6 @@ public class HomeFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
         calendarView = view.findViewById(R.id.mainCalendar);
-        medicationContainer = view.findViewById(R.id.rvTodayMeds);
         medicationLogContainer = view.findViewById(R.id.rvTodayMedLogs);
         tvNoMedication = new TextView(getContext());
 
@@ -80,7 +78,6 @@ public class HomeFragment extends Fragment {
         initRetrofit();
 
         if (currentUserId != -1L) {
-            loadTodayMedications();
             loadTodayMedicationLogs();
             loadMedicationStatus();
         } else {
@@ -411,13 +408,6 @@ public class HomeFragment extends Fragment {
         alarmManager.cancel(secondPendingIntent);
     }
 
-    private void updateMedicationStatusDisplay() {
-        // 更新日历显示
-        loadMedicationStatus();
-
-        // 更新今日用药列表
-        loadTodayMedications();
-    }
 
     private void initRetrofit() {
         apiService = new Retrofit.Builder()
@@ -425,224 +415,6 @@ public class HomeFragment extends Fragment {
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
                 .create(ApiService.class);
-    }
-
-    private void loadTodayMedications() {
-        // 清除现有视图
-        medicationContainer.removeAllViews();
-
-        // 显示标题
-        TextView tvTitle = new TextView(getContext());
-        tvTitle.setText("今日用药计划");
-        tvTitle.setTextSize(18);
-        tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        tvTitle.setPadding(16, 16, 16, 8);
-        tvTitle.setTextColor(0xFF1F2937);
-        medicationContainer.addView(tvTitle);
-
-        // 模拟今日用药数据，实际应从API获取
-        List<Medication> todayMeds = getTodayMedications();
-
-        if (todayMeds.isEmpty()) {
-            TextView tvEmpty = new TextView(getContext());
-            tvEmpty.setText("今日暂无用药计划");
-            tvEmpty.setTextSize(14);
-            tvEmpty.setTextColor(0xFF6B7280);
-            tvEmpty.setPadding(16, 32, 16, 32);
-            tvEmpty.setGravity(Gravity.CENTER);
-            medicationContainer.addView(tvEmpty);
-        } else {
-            for (Medication med : todayMeds) {
-                View medCard = createTodayMedCard(med);
-                medicationContainer.addView(medCard);
-            }
-
-            // 添加服药记录按钮
-            Button btnRecordAll = new Button(getContext());
-            btnRecordAll.setText("✅ 记录全部已服");
-            btnRecordAll.setBackgroundColor(0xFF10B981);
-            btnRecordAll.setTextColor(0xFFFFFFFF);
-            btnRecordAll.setPadding(16, 16, 16, 16);
-            btnRecordAll.setOnClickListener(v -> {
-                recordAllMedications(todayMeds);
-            });
-
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-            );
-            params.setMargins(16, 16, 16, 32);
-            btnRecordAll.setLayoutParams(params);
-            medicationContainer.addView(btnRecordAll);
-        }
-    }
-
-    private List<Medication> getTodayMedications() {
-        // 这里应该从API获取今日用药
-        // 暂时返回空列表
-        return new ArrayList<>();
-    }
-
-    private View createTodayMedCard(Medication medication) {
-        LinearLayout card = new LinearLayout(getContext());
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(16, 16, 16, 16);
-        card.setBackgroundResource(R.drawable.med_card_bg);
-
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        params.setMargins(16, 8, 16, 8);
-        card.setLayoutParams(params);
-
-        // 药品名称和状态
-        LinearLayout nameLayout = new LinearLayout(getContext());
-        nameLayout.setOrientation(LinearLayout.HORIZONTAL);
-
-        TextView tvName = new TextView(getContext());
-        tvName.setText(medication.medicineName);
-        tvName.setTextSize(16);
-        tvName.setTextColor(0xFF1F2937);
-        LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(0,
-                LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-        tvName.setLayoutParams(nameParams);
-
-        Button btnTaken = new Button(getContext());
-        btnTaken.setText("已服");
-        btnTaken.setBackgroundColor(0xFF3B82F6);
-        btnTaken.setTextColor(0xFFFFFFFF);
-        btnTaken.setPadding(16, 8, 16, 8);
-        btnTaken.setOnClickListener(v -> {
-            recordSingleMedication(medication);
-            btnTaken.setText("✅ 已记录");
-            btnTaken.setBackgroundColor(0xFF10B981);
-            btnTaken.setEnabled(false);
-        });
-
-        nameLayout.addView(tvName);
-        nameLayout.addView(btnTaken);
-
-        // 剂量和时间
-        TextView tvDetails = new TextView(getContext());
-        tvDetails.setText("剂量: " + medication.dosage + " | 时间: " +
-                (medication.takeTimeMorning != null ? medication.takeTimeMorning : "") +
-                (medication.takeTimeEvening != null ? " " + medication.takeTimeEvening : ""));
-        tvDetails.setTextSize(14);
-        tvDetails.setTextColor(0xFF6B7280);
-        tvDetails.setPadding(0, 8, 0, 0);
-
-        card.addView(nameLayout);
-        card.addView(tvDetails);
-
-        return card;
-    }
-
-    private void recordSingleMedication(Medication medication) {
-        SimpleDateFormat dateSdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-        SimpleDateFormat timeSdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
-        String today = dateSdf.format(new Date());
-        String currentTime = timeSdf.format(new Date());
-
-        apiService.recordMedicationTaken(
-                currentUserId,
-                medication.medicineName,
-                today,
-                currentTime,
-                1  // 状态：按时服药
-        ).enqueue(new Callback<SmsResponse>() {
-            @Override
-            public void onResponse(Call<SmsResponse> call, Response<SmsResponse> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    SmsResponse smsResponse = response.body();
-                    if (smsResponse.code == 200) {
-                        Toast.makeText(getContext(), medication.medicineName + " 服药记录已保存到云端", Toast.LENGTH_SHORT).show();
-                        loadTodayMedicationLogs();
-                    } else {
-                        Toast.makeText(getContext(), "保存失败: " + smsResponse.msg, Toast.LENGTH_SHORT).show();
-                    }
-                }
-            }
-
-            @Override
-            public void onFailure(Call<SmsResponse> call, Throwable t) {
-                Toast.makeText(getContext(), "网络错误", Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void recordAllMedications(List<Medication> medications) {
-        if (medications.isEmpty()) return;
-
-        SimpleDateFormat dateSdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-        SimpleDateFormat timeSdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
-        String today = dateSdf.format(new Date());
-        String currentTime = timeSdf.format(new Date());
-
-        // 创建计数器对象
-        class RequestCounter {
-            int success = 0;
-            int completed = 0;
-            int total = medications.size();
-
-            synchronized void incrementSuccess() {
-                success++;
-                completed++;
-                checkCompletion();
-            }
-
-            synchronized void incrementCompleted() {
-                completed++;
-                checkCompletion();
-            }
-
-            private void checkCompletion() {
-                if (completed == total) {
-                    getActivity().runOnUiThread(() -> {
-                        int failed = total - success;
-                        String message;
-                        if (failed == 0) {
-                            message = "已成功保存 " + success + " 种药品的服药记录到云端";
-                        } else {
-                            message = "保存完成：" + success + " 种成功，" + failed + " 种失败";
-                        }
-
-                        Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
-                        loadTodayMedicationLogs();
-                    });
-                }
-            }
-        }
-
-        final RequestCounter counter = new RequestCounter();
-
-        for (Medication med : medications) {
-            apiService.recordMedicationTaken(
-                    currentUserId,
-                    med.medicineName,
-                    today,
-                    currentTime,
-                    1
-            ).enqueue(new Callback<SmsResponse>() {
-                @Override
-                public void onResponse(Call<SmsResponse> call, Response<SmsResponse> response) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        if (response.body().code == 200) {
-                            counter.incrementSuccess();
-                        } else {
-                            counter.incrementCompleted();
-                        }
-                    } else {
-                        counter.incrementCompleted();
-                    }
-                }
-
-                @Override
-                public void onFailure(Call<SmsResponse> call, Throwable t) {
-                    counter.incrementCompleted();
-                }
-            });
-        }
     }
 
     private void loadMedicationStatus() {
@@ -654,8 +426,7 @@ public class HomeFragment extends Fragment {
 
                     // 在这里处理日历标记
                     if (logs.size() > 0) {
-                        // 可以在这里更新日历的标记
-                        updateCalendarMarks(logs);
+
                     }
 
                     // 简单示例：控制台输出
@@ -674,33 +445,10 @@ public class HomeFragment extends Fragment {
         });
     }
 
-    private void updateCalendarMarks(List<MedicationLog> logs) {
-        // 这里可以设置日历的日期标记
-        // 需要自定义CalendarView或使用其他库来实现日期标记
-        // 暂时留空
-    }
-
-    /**
-     * 新增方法：同步用药数据
-     * 当从通知进入应用时，确保数据是最新的
-     */
-    private void syncMedicationData() {
-        // 当用户从通知进入时，自动刷新数据
-        if (isFromNotification && currentUserId != -1L) {
-            // 延迟刷新，确保API调用完成
-            new android.os.Handler().postDelayed(() -> {
-                loadTodayMedicationLogs();
-                loadMedicationStatus();
-            }, 1000);
-        }
-    }
-
     @Override
     public void onResume() {
         super.onResume();
         // 每次回到页面都检查是否有通知跳转
         checkIntentFromNotification();
-        // 新增：同步数据
-        syncMedicationData();
     }
 }
