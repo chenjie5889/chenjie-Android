@@ -135,6 +135,12 @@ public interface ApiService {
     @GET("api/getTodayMedicationLogs")
     Call<List<MedicationLogResponse>> getTodayMedicationLogs(@Query("userId") Long userId);
 
+    // 新增接口方法：获取指定日期的服药记录
+    @GET("api/getMedLogsByDate")
+    Call<List<MedicationLogResponse>> getMedLogsByDate(
+            @Query("userId") Long userId,
+            @Query("date") String date
+    );
 }
 
 class MedicationLogResponse {

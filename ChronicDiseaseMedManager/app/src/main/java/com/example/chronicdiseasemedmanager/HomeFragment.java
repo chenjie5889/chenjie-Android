@@ -35,7 +35,7 @@ public class HomeFragment extends Fragment {
     private LinearLayout medicationLogContainer;
     private TextView tvNoMedication;
     private TextView tvNoLogs;
-
+    private String selectedDate; // 新增：记录选中的日期
     // 存储当前的用药提醒信息（从Intent传递）
     private String currentMedicineName = "";
     private String currentDosage = "";
@@ -51,6 +51,25 @@ public class HomeFragment extends Fragment {
         medicationLogContainer = view.findViewById(R.id.rvTodayMedLogs);
         tvNoMedication = new TextView(getContext());
 
+        // 设置日历日期选择监听器
+        calendarView.setOnDateChangeListener(new CalendarView.OnDateChangeListener() {
+            @Override
+            public void onSelectedDayChange(@NonNull CalendarView view, int year, int month, int dayOfMonth) {
+                // month是从0开始的，所以要+1
+                selectedDate = String.format(Locale.getDefault(), "%04d-%02d-%02d", year, month + 1, dayOfMonth);
+                Log.d("HomeFragment", "选中日期: " + selectedDate);
+
+                // 加载选中日期的用药记录
+                loadMedicationLogsByDate(selectedDate);
+
+                // 更新标题显示
+                updateMedicationLogTitle(selectedDate);
+            }
+        });
+
+        // 获取当前日期作为默认选中
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        selectedDate = sdf.format(new Date());
         // 检查是否从通知跳转过来
         checkIntentFromNotification();
 
@@ -69,6 +88,98 @@ public class HomeFragment extends Fragment {
         }
 
         return view;
+    }
+
+    /**
+     * 新增方法：加载指定日期的服药记录
+     */
+    private void loadMedicationLogsByDate(String date) {
+        if (medicationLogContainer == null || apiService == null || currentUserId == null) {
+            return;
+        }
+
+        // 清除现有视图
+        medicationLogContainer.removeAllViews();
+
+        // 显示加载中
+        TextView tvLoading = new TextView(getContext());
+        tvLoading.setText("正在加载 " + date + " 的服药记录...");
+        tvLoading.setTextSize(14);
+        tvLoading.setTextColor(0xFF6B7280);
+        tvLoading.setGravity(Gravity.CENTER);
+        tvLoading.setPadding(16, 32, 16, 32);
+        medicationLogContainer.addView(tvLoading);
+
+        apiService.getMedLogsByDate(currentUserId, date).enqueue(new Callback<List<MedicationLogResponse>>() {
+            @Override
+            public void onResponse(Call<List<MedicationLogResponse>> call, Response<List<MedicationLogResponse>> response) {
+                medicationLogContainer.removeAllViews();
+
+                if (response.isSuccessful() && response.body() != null) {
+                    List<MedicationLogResponse> logs = response.body();
+
+                    if (logs.isEmpty()) {
+                        showNoLogsMessage(date);
+                    } else {
+                        // 按时间排序（最近的在前）
+                        Collections.sort(logs, (log1, log2) -> {
+                            try {
+                                SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
+                                Date time1 = log1.takeTime != null ? sdf.parse(log1.takeTime) : new Date(0);
+                                Date time2 = log2.takeTime != null ? sdf.parse(log2.takeTime) : new Date(0);
+                                return time2.compareTo(time1); // 降序
+                            } catch (Exception e) {
+                                return 0;
+                            }
+                        });
+
+                        // 显示标题
+                        TextView tvTitle = new TextView(getContext());
+                        tvTitle.setText(date + " 服药记录");
+                        tvTitle.setTextSize(18);
+                        tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+                        tvTitle.setPadding(16, 16, 16, 8);
+                        tvTitle.setTextColor(0xFF1F2937);
+                        medicationLogContainer.addView(tvTitle);
+
+                        for (MedicationLogResponse log : logs) {
+                            View logCard = createMedicationLogCard(log);
+                            medicationLogContainer.addView(logCard);
+                        }
+                    }
+                } else {
+                    showNoLogsMessage(date);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<MedicationLogResponse>> call, Throwable t) {
+                medicationLogContainer.removeAllViews();
+                showNoLogsMessage(date);
+                Log.e("HomeFragment", "获取指定日期用药记录失败: " + t.getMessage());
+            }
+        });
+    }
+
+    /**
+     * 新增方法：更新服药记录标题
+     */
+    private void updateMedicationLogTitle(String date) {
+        // 这个方法主要是为了更新UI标题，但我们在loadMedicationLogsByDate中已经处理了
+        // 可以留作后续扩展使用
+    }
+
+    /**
+     * 修改方法：显示无记录消息（添加日期参数）
+     */
+    private void showNoLogsMessage(String date) {
+        TextView tvEmpty = new TextView(getContext());
+        tvEmpty.setText(date + " 暂无服药记录");
+        tvEmpty.setTextSize(14);
+        tvEmpty.setTextColor(0xFF6B7280);
+        tvEmpty.setPadding(16, 32, 16, 32);
+        tvEmpty.setGravity(Gravity.CENTER);
+        medicationLogContainer.addView(tvEmpty);
     }
 
     private void checkIntentFromNotification() {
@@ -114,57 +225,9 @@ public class HomeFragment extends Fragment {
     }
 
     private void loadTodayMedicationLogs() {
-        if (medicationLogContainer == null || apiService == null) return;
-
-        // 清除现有视图
-        medicationLogContainer.removeAllViews();
-
-        // 显示标题
-        TextView tvTitle = new TextView(getContext());
-        tvTitle.setText("今日服药记录");
-        tvTitle.setTextSize(18);
-        tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        tvTitle.setPadding(16, 16, 16, 8);
-        tvTitle.setTextColor(0xFF1F2937);
-        medicationLogContainer.addView(tvTitle);
-
-        apiService.getTodayMedicationLogs(currentUserId).enqueue(new Callback<List<MedicationLogResponse>>() {
-            @Override
-            public void onResponse(Call<List<MedicationLogResponse>> call, Response<List<MedicationLogResponse>> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    List<MedicationLogResponse> logs = response.body();
-
-                    if (logs.isEmpty()) {
-                        showNoLogsMessage();
-                    } else {
-                        // 按时间排序（最近的在前）
-                        Collections.sort(logs, (log1, log2) -> {
-                            try {
-                                SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
-                                Date time1 = log1.takeTime != null ? sdf.parse(log1.takeTime) : new Date(0);
-                                Date time2 = log2.takeTime != null ? sdf.parse(log2.takeTime) : new Date(0);
-                                return time2.compareTo(time1); // 降序
-                            } catch (Exception e) {
-                                return 0;
-                            }
-                        });
-
-                        for (MedicationLogResponse log : logs) {
-                            View logCard = createMedicationLogCard(log);
-                            medicationLogContainer.addView(logCard);
-                        }
-                    }
-                } else {
-                    showNoLogsMessage();
-                }
-            }
-
-            @Override
-            public void onFailure(Call<List<MedicationLogResponse>> call, Throwable t) {
-                Log.e("HomeFragment", "获取用药记录失败: " + t.getMessage());
-                showNoLogsMessage();
-            }
-        });
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        String today = sdf.format(new Date());
+        loadMedicationLogsByDate(today);
     }
 
     private View createMedicationLogCard(MedicationLogResponse log) {
@@ -235,16 +298,6 @@ public class HomeFragment extends Fragment {
         card.addView(statusDateLayout);
 
         return card;
-    }
-
-    private void showNoLogsMessage() {
-        TextView tvEmpty = new TextView(getContext());
-        tvEmpty.setText("今日暂无服药记录");
-        tvEmpty.setTextSize(14);
-        tvEmpty.setTextColor(0xFF6B7280);
-        tvEmpty.setPadding(16, 32, 16, 32);
-        tvEmpty.setGravity(Gravity.CENTER);
-        medicationLogContainer.addView(tvEmpty);
     }
 
     private void recordMedicationTaken() {

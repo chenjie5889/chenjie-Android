@@ -89,6 +89,17 @@
                 android:orientation="vertical"
                 android:padding="8dp">
 
+                <!-- 标题将动态显示选中的日期 -->
+                <TextView
+                    android:id="@+id/tvMedLogTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="服药记录"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:padding="16dp"
+                    android:textColor="#1F2937"/>
+
                 <LinearLayout
                     android:id="@+id/rvTodayMedLogs"
                     android:layout_width="match_parent"

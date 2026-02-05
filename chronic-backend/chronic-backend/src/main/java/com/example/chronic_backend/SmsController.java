@@ -235,6 +235,32 @@ public static class MedicationLogResponse {
     private String logDate;
 }
 
+    // 新增方法：获取指定日期的服药记录
+    @GetMapping("/getMedLogsByDate")
+    public List<MedicationLogResponse> getMedLogsByDate(
+        @RequestParam Long userId,
+        @RequestParam String date
+    ) {
+        try {
+            LocalDate targetDate = LocalDate.parse(date, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            List<MedicationLog> logs = medLogRepository.findByUserIdAndLogDate(userId, targetDate);
+            
+            List<MedicationLogResponse> responses = new ArrayList<>();
+            for (MedicationLog log : logs) {
+                MedicationLogResponse response = new MedicationLogResponse();
+                response.setMedicineName(log.getMedicineName());
+                response.setTakeTime(log.getTakeTime());
+                response.setStatus(log.getStatus());
+                response.setLogDate(log.getLogDate().toString());
+                responses.add(response);
+            }
+            
+            return responses;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
+    }
     @GetMapping("/getTodayMedications")
     public List<Medication> getTodayMedications(@RequestParam Long userId) {
         // 获取用户今日有效的用药方案
