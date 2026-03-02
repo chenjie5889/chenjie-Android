@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @CrossOrigin
 @RestController
@@ -29,7 +30,7 @@ public class AdminController {
     @Autowired
     private FamilyRelationshipRepository familyRepository;
     
-    // 管理员登录（保持不变）
+    // 管理员登录
     @PostMapping("/login")
     public AdminResponse adminLogin(@RequestParam String username, @RequestParam String password) {
         try {
@@ -63,7 +64,7 @@ public class AdminController {
         }
     }
     
-    // 获取当前管理员信息（保持不变）
+    // 获取当前管理员信息
     @GetMapping("/profile")
     public AdminResponse getAdminProfile(@RequestParam Long adminId) {
         try {
@@ -88,7 +89,7 @@ public class AdminController {
         }
     }
     
-    // 修改密码（保持不变）
+    // 修改密码
     @PostMapping("/changePassword")
     public AdminResponse changePassword(
         @RequestParam Long adminId,
@@ -190,7 +191,7 @@ public class AdminController {
         }
     }
     
-    // 获取统计数据 - 添加图表数据
+    // 获取统计数据
     @GetMapping("/statistics")
     public StatisticsResponse getStatistics() {
         try {
@@ -216,6 +217,31 @@ public class AdminController {
             ageStats.put("31-45岁", 0L);
             ageStats.put("46-60岁", 0L);
             ageStats.put("60岁以上", 0L);
+            
+            // 疾病统计排名 - 使用更精确的统计方式
+            Map<String, Long> diseaseStats = new HashMap<>();
+            
+            // 获取所有疾病记录
+            List<Disease> allDiseases = diseaseRepository.findAll();
+            System.out.println("=== 疾病统计开始 ===");
+            System.out.println("总疾病记录数: " + allDiseases.size());
+            
+            for (Disease disease : allDiseases) {
+                if (disease.getDiseaseName() != null && !disease.getDiseaseName().trim().isEmpty()) {
+                    String diseaseName = disease.getDiseaseName().trim();
+                    // 规范化疾病名称（例如：去除多余空格，统一大小写）
+                    diseaseName = normalizeDiseaseName(diseaseName);
+                    diseaseStats.put(diseaseName, diseaseStats.getOrDefault(diseaseName, 0L) + 1);
+                    System.out.println("统计疾病: " + diseaseName);
+                } else {
+                    System.out.println("跳过空疾病名称: " + disease);
+                }
+            }
+            
+            System.out.println("疾病统计Map大小: " + diseaseStats.size());
+            for (Map.Entry<String, Long> entry : diseaseStats.entrySet()) {
+                System.out.println("疾病: " + entry.getKey() + " - 次数: " + entry.getValue());
+            }
             
             for (User user : allUsers) {
                 Optional<Archive> archive = archiveRepository.findByUserId(user.getId());
@@ -268,24 +294,57 @@ public class AdminController {
                     .count();
             }
             
+            // 获取疾病排名前5（修改这里：从10改为5）
+            List<Map<String, Object>> diseaseRanking = new ArrayList<>();
+            List<Map.Entry<String, Long>> sortedList = diseaseStats.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(5)  // 改为5
+                .collect(Collectors.toList());
+            
+            for (Map.Entry<String, Long> entry : sortedList) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("name", entry.getKey());
+                item.put("count", entry.getValue());
+                diseaseRanking.add(item);
+                System.out.println("排名疾病: " + entry.getKey() + " - " + entry.getValue());
+            }
+            
             response.setTotalUsers(totalUsers);
             response.setUsersWithArchive(usersWithArchive);
             response.setUsersWithDisease(usersWithDisease);
             response.setTotalFamilies(totalFamilies);
             response.setGenderStats(genderStats);
             response.setAgeStats(ageStats);
+            response.setDiseaseRanking(diseaseRanking);
             response.setCode(200);
             response.setMsg("获取成功");
+            
+            System.out.println("=== 疾病统计完成 ===");
+            System.out.println("最终疾病排名数量: " + diseaseRanking.size());
             
             return response;
         } catch (Exception e) {
             e.printStackTrace();
             return new StatisticsResponse(500, "获取失败: " + e.getMessage(), 
-                    0, 0, 0, 0, new HashMap<>(), new HashMap<>());
+                    0, 0, 0, 0, new HashMap<>(), new HashMap<>(), new ArrayList<>());
         }
     }
+
+    // 规范化疾病名称
+    private String normalizeDiseaseName(String name) {
+        if (name == null) return "";
+        // 去除首尾空格
+        name = name.trim();
+        // 替换多个空格为单个空格
+        name = name.replaceAll("\\s+", " ");
+        // 如果包含"病"字，确保格式统一
+        if (!name.endsWith("病") && !name.endsWith("症") && !name.endsWith("炎")) {
+            // 不做特殊处理
+        }
+        return name;
+    }
     
-    // 删除用户（保持不变）
+    // 删除用户
     @DeleteMapping("/deleteUser")
     public AdminResponse deleteUser(@RequestParam Long userId) {
         try {
@@ -396,13 +455,15 @@ public class AdminController {
         private long totalFamilies;
         private Map<String, Long> genderStats;  // 性别统计
         private Map<String, Long> ageStats;     // 年龄段统计
+        private List<Map<String, Object>> diseaseRanking; // 疾病排名（前5）
         
         public StatisticsResponse() {}
         
         public StatisticsResponse(int code, String msg, long totalUsers, 
-                                 long usersWithArchive, long usersWithDisease, 
-                                 long totalFamilies, Map<String, Long> genderStats,
-                                 Map<String, Long> ageStats) {
+                                long usersWithArchive, long usersWithDisease, 
+                                long totalFamilies, Map<String, Long> genderStats,
+                                Map<String, Long> ageStats,
+                                List<Map<String, Object>> diseaseRanking) {
             this.code = code;
             this.msg = msg;
             this.totalUsers = totalUsers;
@@ -411,6 +472,7 @@ public class AdminController {
             this.totalFamilies = totalFamilies;
             this.genderStats = genderStats;
             this.ageStats = ageStats;
+            this.diseaseRanking = diseaseRanking;
         }
     }
 }
