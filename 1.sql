@@ -137,6 +137,35 @@ CREATE TABLE `admins` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 自定义指标表
+DROP TABLE IF EXISTS `custom_metrics`;
+CREATE TABLE `custom_metrics` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT NOT NULL,
+  `metric_name` VARCHAR(50) NOT NULL COMMENT '指标名称，如：血压、血糖',
+  `unit` VARCHAR(20) COMMENT '单位，如：mmHg、mmol/L',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_user_id (user_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 自定义指标记录表
+DROP TABLE IF EXISTS `custom_metric_records`;
+CREATE TABLE `custom_metric_records` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `metric_id` BIGINT NOT NULL,
+  `user_id` BIGINT NOT NULL,
+  `record_value` VARCHAR(50) NOT NULL COMMENT '记录值，如：120/80',
+  `record_date` DATE NOT NULL COMMENT '记录日期',
+  `note` VARCHAR(200) COMMENT '备注，如：早餐前测量',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_metric_id (metric_id),
+  INDEX idx_user_date (user_id, record_date),
+  FOREIGN KEY (metric_id) REFERENCES custom_metrics(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 INSERT INTO `users` (phone, password, nickname, real_name, id_card) VALUES
 -- 原有2个用户
 ('13584715889', '123456', '测试用户', '张三', '110101199001011234'),

@@ -35,6 +35,28 @@ public interface ApiService {
     @POST("api/updateArchive")
     Call<SmsResponse> updateArchive(@Body Archive archive);
 
+    // --- 自定义指标接口 ---
+    @GET("api/custom-metrics/list")
+    Call<List<CustomMetric>> getCustomMetrics(@Query("userId") Long userId);
+
+    @POST("api/custom-metrics/add")
+    Call<SmsResponse> addCustomMetric(@Body CustomMetric metric);
+
+    @DELETE("api/custom-metrics/delete")
+    Call<SmsResponse> deleteCustomMetric(@Query("metricId") Long metricId);
+
+    // 指标记录接口
+    @GET("api/custom-metrics/records")
+    Call<List<CustomMetricRecord>> getMetricRecords(@Query("userId") Long userId, @Query("metricId") Long metricId);
+
+    @POST("api/custom-metrics/record/add")
+    Call<SmsResponse> addMetricRecord(@Body CustomMetricRecord record);
+
+    @DELETE("api/custom-metrics/record/delete")
+    Call<SmsResponse> deleteMetricRecord(@Query("recordId") Long recordId);
+
+    @GET("api/custom-metrics/records/by-date")
+    Call<List<CustomMetricRecord>> getMetricRecordsByDate(@Query("userId") Long userId, @Query("date") String date);
     // --- 疾病管理接口 ---
     @GET("api/med/diseases")
     Call<List<Disease>> getDiseases(@Query("userId") Long userId);
@@ -181,6 +203,28 @@ class Archive {
     public String medicalHistory;
 
     public Archive() {}
+}
+
+class CustomMetric {
+    public Long id;
+    public Long userId;
+    public String metricName;
+    public String unit;
+    public String createdAt;
+
+    public CustomMetric() {}
+}
+
+class CustomMetricRecord {
+    public Long id;
+    public Long metricId;
+    public Long userId;
+    public String recordValue;
+    public String recordDate;
+    public String note;
+    public String createdAt;
+
+    public CustomMetricRecord() {}
 }
 
 class MedicationLog {

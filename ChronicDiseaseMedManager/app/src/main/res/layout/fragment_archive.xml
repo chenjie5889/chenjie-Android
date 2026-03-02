@@ -39,6 +39,7 @@
             android:orientation="vertical"
             android:padding="20dp">
 
+            <!-- 原有档案部分 -->
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -69,6 +70,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:visibility="gone">
+                <!-- 原有的编辑表单 -->
                 <androidx.cardview.widget.CardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -245,16 +247,202 @@
                     android:lineSpacingExtra="4dp"
                     android:textColor="#334155"
                     android:textSize="15sp" />
+            </LinearLayout>
+
+            <!-- 新增：自定义指标部分 -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#E2E8F0"
+                android:layout_marginVertical="20dp" />
+
+            <!-- 自定义指标标题和添加按钮 -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp">
 
                 <TextView
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:gravity="end"
-                    android:layout_marginTop="30dp"
-                    android:text="—— 个人健康记录存档 ——"
-                    android:textSize="12sp"
-                    android:textColor="#CBD5E1"/>
+                    android:text="健康指标记录"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="#1E293B" />
+
+                <TextView
+                    android:id="@+id/btnAddMetric"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:text="+ 添加指标"
+                    android:textColor="#3B82F6"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:padding="8dp"
+                    android:background="?android:attr/selectableItemBackground" />
+            </RelativeLayout>
+
+            <!-- 指标切换Tab -->
+            <HorizontalScrollView
+                android:id="@+id/metricTabsScroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/metricTabsContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:orientation="horizontal"
+                    android:background="#FFFFFF"
+                    android:elevation="2dp"
+                    android:padding="4dp" />
+            </HorizontalScrollView>
+
+            <!-- 指标记录日期选择器 -->
+            <LinearLayout
+                android:id="@+id/metricDateLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp"
+                android:background="#FFFFFF"
+                android:elevation="2dp"
+                android:padding="8dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/btnPrevDay"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:text="←"
+                    android:textSize="24sp"
+                    android:textColor="#3B82F6"
+                    android:gravity="center"
+                    android:background="?android:attr/selectableItemBackground" />
+
+                <TextView
+                    android:id="@+id/tvSelectedDate"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:text="2026-02-23"
+                    android:textSize="16sp"
+                    android:textColor="#1F2937"
+                    android:gravity="center"
+                    android:background="?android:attr/selectableItemBackground" />
+
+                <TextView
+                    android:id="@+id/btnNextDay"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:text="→"
+                    android:textSize="24sp"
+                    android:textColor="#3B82F6"
+                    android:gravity="center"
+                    android:background="?android:attr/selectableItemBackground" />
+
+                <TextView
+                    android:id="@+id/btnToday"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:text="今天"
+                    android:textColor="#3B82F6"
+                    android:gravity="center"
+                    android:paddingHorizontal="16dp"
+                    android:background="?android:attr/selectableItemBackground" />
             </LinearLayout>
+
+            <!-- 指标记录列表容器 -->
+            <LinearLayout
+                android:id="@+id/metricRecordsContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <!-- 添加记录按钮 -->
+            <TextView
+                android:id="@+id/btnAddRecord"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="20dp"
+                android:text="+ 添加记录"
+                android:textColor="#3B82F6"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:visibility="gone"
+                android:background="?android:attr/selectableItemBackground" />
+
+            <!-- 指标空状态提示 -->
+            <LinearLayout
+                android:id="@+id/metricEmptyState"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="32dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@android:drawable/ic_menu_edit" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="暂无健康指标"
+                    android:textSize="14sp"
+                    android:textColor="#94A3B8"
+                    android:layout_marginTop="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="点击上方 + 添加指标"
+                    android:textSize="12sp"
+                    android:textColor="#64748B"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
+            <!-- 记录空状态提示 -->
+            <LinearLayout
+                android:id="@+id/recordEmptyState"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="24dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="今日暂无记录"
+                    android:textSize="14sp"
+                    android:textColor="#94A3B8" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="点击下方按钮添加"
+                    android:textSize="12sp"
+                    android:textColor="#64748B"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:layout_marginTop="10dp"
+                android:text="—— 个人健康记录存档 ——"
+                android:textSize="12sp"
+                android:textColor="#CBD5E1"/>
 
         </LinearLayout>
     </ScrollView>
