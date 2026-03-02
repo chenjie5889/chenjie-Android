@@ -240,7 +240,7 @@ public class MedicationReminderReceiver extends BroadcastReceiver {
 
             // 3. 初始化Retrofit
             Retrofit retrofit = new Retrofit.Builder()
-                    .baseUrl("http://192.168.238.1:8080/")
+                    .baseUrl("http://192.168.71.67:8080/")
                     .addConverterFactory(GsonConverterFactory.create())
                     .build();
 
