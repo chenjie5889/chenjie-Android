@@ -49,7 +49,7 @@ public class LoginActivity extends AppCompatActivity {
 
     private void initRetrofit() {
         apiService = new Retrofit.Builder()
-                .baseUrl("http://192.168.71.34:8080/") // 修改为你的服务器IP
+                .baseUrl("http://192.168.238.1:8080/") // 修改为你的服务器IP
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
                 .create(ApiService.class);

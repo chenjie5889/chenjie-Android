@@ -40,7 +40,7 @@ public class RegisterActivity extends AppCompatActivity {
 
     private void initRetrofit() {
         apiService = new Retrofit.Builder()
-                .baseUrl("http://192.168.71.34:8080/") // 请确保与后端IP一致
+                .baseUrl("http://192.168.238.1:8080/") // 请确保与后端IP一致
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
                 .create(ApiService.class);
