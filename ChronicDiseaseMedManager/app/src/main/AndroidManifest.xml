@@ -55,6 +55,7 @@
             android:enabled="true"
             android:exported="false" />
 
+        <activity android:name=".MedStatsActivity" />
         <activity
             android:name=".ChatAssistantActivity"
             android:exported="false"

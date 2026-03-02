@@ -28,7 +28,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public class SetFragment extends Fragment {
 
     private TextView tvNickname, tvPhone, tvVersion;
-    private TextView itemProfileInfo, itemAbout, itemAssistant; // 添加itemAssistant
+    private TextView itemProfileInfo, itemAbout, itemAssistant, itemDataStats; // 添加itemAssistant
     private Button btnLogout;
     private ApiService apiService;
     private Long currentUserId;
@@ -54,6 +54,7 @@ public class SetFragment extends Fragment {
 
         itemProfileInfo = v.findViewById(R.id.itemProfileInfo);
         itemAbout = v.findViewById(R.id.itemAbout);
+        itemDataStats = v.findViewById(R.id.itemDataStats); // 初始化数据统计控件
         itemAssistant = v.findViewById(R.id.itemAssistant); // 直接从传入的View中查找
         btnLogout = v.findViewById(R.id.btnLogout);
 
@@ -161,6 +162,13 @@ public class SetFragment extends Fragment {
         // 个人信息点击事件 - 跳转到个人信息编辑页面
         itemProfileInfo.setOnClickListener(v -> {
             Intent intent = new Intent(getActivity(), ProfileInfoActivity.class);
+            startActivity(intent);
+        });
+
+        // 数据统计与分析
+        TextView itemDataStats = rootView.findViewById(R.id.itemDataStats);
+        itemDataStats.setOnClickListener(v -> {
+            Intent intent = new Intent(getActivity(), MedStatsActivity.class);
             startActivity(intent);
         });
 
