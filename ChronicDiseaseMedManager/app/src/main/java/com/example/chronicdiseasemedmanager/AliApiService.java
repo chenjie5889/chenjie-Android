@@ -1,4 +1,3 @@
-// 文件: AliApiService.java
 package com.example.chronicdiseasemedmanager;
 
 import retrofit2.Call;

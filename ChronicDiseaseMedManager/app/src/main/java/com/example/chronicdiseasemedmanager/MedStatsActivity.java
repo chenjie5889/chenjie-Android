@@ -39,6 +39,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -239,10 +240,10 @@ public class MedStatsActivity extends AppCompatActivity {
         addMedicationComplianceStats();
 
         // 2. 添加近7天用药情况
-        addRecentWeekMedicationStats();
+        addRecentWeekMedStats();
 
         // 3. 添加用药习惯分析
-        addMedicationHabitsStats();
+        // addMedicationHabitsStats();
 
         // 4. 添加病情变化趋势（自定义指标）
         addHealthTrendStats();
@@ -377,7 +378,7 @@ public class MedStatsActivity extends AppCompatActivity {
     /**
      * 近7天用药情况
      */
-    private void addRecentWeekMedicationStats() {
+    private void addRecentWeekMedStats() {
         View cardView = createStatCard("📅 近7天用药情况");
         LinearLayout contentLayout = cardView.findViewById(R.id.cardContent);
 
@@ -394,13 +395,28 @@ public class MedStatsActivity extends AppCompatActivity {
 
         // 获取最近7天的日期
         Calendar calendar = Calendar.getInstance();
-        Map<String, int[]> dailyStats = new HashMap<>();
+        List<String> dateList = new ArrayList<>(); // 存储日期字符串 yyyy-MM-dd
+        List<String> dateLabels = new ArrayList<>(); // 存储显示标签
+        Map<String, int[]> dailyStats = new HashMap<>(); // 用于快速查找
 
+        // 按时间顺序添加7天（从最早到最新）
         for (int i = 6; i >= 0; i--) {
             Calendar dayCal = (Calendar) calendar.clone();
             dayCal.add(Calendar.DAY_OF_YEAR, -i);
             String dateStr = dateFormat.format(dayCal.getTime());
-            dailyStats.put(dateStr, new int[]{0, 0}); // [总次数, 按时次数]
+            dateList.add(dateStr);
+            dailyStats.put(dateStr, new int[]{0, 0, 0}); // [总次数, 按时次数, 漏服次数]
+
+            // 生成显示标签
+            String displayLabel;
+            if (i == 0) {
+                displayLabel = "今天";
+            } else if (i == 1) {
+                displayLabel = "昨天";
+            } else {
+                displayLabel = monthDayFormat.format(dayCal.getTime());
+            }
+            dateLabels.add(displayLabel);
         }
 
         // 统计每天的数据
@@ -413,72 +429,72 @@ public class MedStatsActivity extends AppCompatActivity {
                 stats[0]++; // 总次数
                 if (log.status != null && log.status == 1) {
                     stats[1]++; // 按时次数
+                } else {
+                    stats[2]++; // 漏服次数
                 }
             }
         }
 
-        // 创建柱状图
+        // 打印调试信息
+        Log.d(TAG, "=== 近7天用药数据 ===");
+        for (int i = 0; i < dateList.size(); i++) {
+            String date = dateList.get(i);
+            int[] stats = dailyStats.get(date);
+            Log.d(TAG, "日期: " + dateLabels.get(i) + "(" + date + ")" +
+                    ", 总次数: " + stats[0] +
+                    ", 按时: " + stats[1] +
+                    ", 漏服: " + stats[2]);
+        }
+
+        // 创建堆叠柱状图
         BarChart barChart = new BarChart(this);
         barChart.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 400
         ));
 
-        // 创建两个数据集：按时和漏服
-        ArrayList<BarEntry> onTimeEntries = new ArrayList<>();
-        ArrayList<BarEntry> missedEntries = new ArrayList<>();
-        ArrayList<String> labels = new ArrayList<>();
+        // 创建数据集：按时和漏服（堆叠显示）
+        ArrayList<BarEntry> combinedEntries = new ArrayList<>();
 
-        int index = 0;
-        for (Map.Entry<String, int[]> entry : dailyStats.entrySet()) {
-            String dateStr = entry.getKey();
-            int[] stats = entry.getValue();
-            onTimeEntries.add(new BarEntry(index, stats[1]));
-            missedEntries.add(new BarEntry(index, stats[0] - stats[1]));
+        // 按dateList的顺序添加数据
+        for (int i = 0; i < dateList.size(); i++) {
+            String date = dateList.get(i);
+            int[] stats = dailyStats.get(date);
 
-            // 获取显示标签
-            try {
-                Date date = dateFormat.parse(dateStr);
-                labels.add(monthDayFormat.format(date));
-            } catch (ParseException e) {
-                labels.add(dateStr.substring(5));
-            }
-            index++;
+            // 创建堆叠柱状图的数据点
+            // y值数组：[按时次数, 漏服次数]
+            combinedEntries.add(new BarEntry(i, new float[]{stats[1], stats[2]}));
         }
 
-        BarDataSet onTimeDataSet = new BarDataSet(onTimeEntries, "按时服药");
-        onTimeDataSet.setColor(0xFF3B82F6);
-        onTimeDataSet.setValueTextColor(0xFF1F2937);
-        onTimeDataSet.setValueTextSize(10f);
+        // 创建堆叠数据集
+        BarDataSet combinedDataSet = new BarDataSet(combinedEntries, "用药情况");
+        combinedDataSet.setColors(new int[]{0xFF3B82F6, 0xFFEF4444}); // 蓝色(按时), 红色(漏服)
+        combinedDataSet.setStackLabels(new String[]{"按时", "漏服"});
+        // 关键修改：禁用数值显示
+        combinedDataSet.setDrawValues(false);
 
-        BarDataSet missedDataSet = new BarDataSet(missedEntries, "漏服");
-        missedDataSet.setColor(0xFFEF4444);
-        missedDataSet.setValueTextColor(0xFF1F2937);
-        missedDataSet.setValueTextSize(10f);
-
-        BarData barData = new BarData(onTimeDataSet, missedDataSet);
-        barData.setBarWidth(0.45f); // 设置柱宽
-        barData.setValueFormatter(new com.github.mikephil.charting.formatter.ValueFormatter() {
-            @Override
-            public String getFormattedValue(float value) {
-                return value > 0 ? String.valueOf((int) value) : "";
-            }
-        });
+        BarData barData = new BarData(combinedDataSet);
+        barData.setBarWidth(0.7f); // 设置柱宽
+        // 确保不显示数值
+        barData.setDrawValues(false);
 
         barChart.setData(barData);
-        barChart.groupBars(0f, 0.1f, 0.05f); // 分组显示
+        barChart.setDrawValueAboveBar(false); // 确保不显示数值
 
         // 配置X轴
         XAxis xAxis = barChart.getXAxis();
-        xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
+        xAxis.setValueFormatter(new IndexAxisValueFormatter(dateLabels));
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         xAxis.setGranularity(1f);
         xAxis.setDrawGridLines(false);
+        xAxis.setLabelRotationAngle(0);
 
         // 配置Y轴
         YAxis leftAxis = barChart.getAxisLeft();
         leftAxis.setAxisMinimum(0f);
         leftAxis.setGranularity(1f);
+        leftAxis.setDrawGridLines(true);
+        leftAxis.setGridColor(0xFFE5E7EB);
         barChart.getAxisRight().setEnabled(false);
 
         // 配置图例
@@ -487,123 +503,166 @@ public class MedStatsActivity extends AppCompatActivity {
         legend.setHorizontalAlignment(Legend.LegendHorizontalAlignment.RIGHT);
         legend.setOrientation(Legend.LegendOrientation.HORIZONTAL);
         legend.setDrawInside(false);
+        legend.setTextSize(12f);
 
         Description description = new Description();
-        description.setText("近7天用药情况");
+        description.setText("");
         barChart.setDescription(description);
+
+        barChart.setBackgroundColor(0xFFFFFFFF);
+        barChart.setDrawBarShadow(false);
+        barChart.setDrawValueAboveBar(false); // 确保不显示数值
+        barChart.setPinchZoom(false);
+        barChart.setScaleEnabled(false);
+        barChart.setDoubleTapToZoomEnabled(false);
         barChart.animateY(1000);
-        barChart.setExtraOffsets(10, 10, 10, 10);
+        barChart.setExtraOffsets(10, 20, 10, 10);
         barChart.invalidate();
 
         contentLayout.addView(barChart);
 
-        // 添加说明文字
-        TextView tvNote = new TextView(this);
-        tvNote.setText("蓝色: 按时服药  红色: 漏服");
-        tvNote.setTextColor(0xFF6B7280);
-        tvNote.setTextSize(12);
-        tvNote.setPadding(0, 16, 0, 0);
-        tvNote.setGravity(android.view.Gravity.CENTER);
-        contentLayout.addView(tvNote);
+        // 添加图例说明
+        LinearLayout legendLayout = new LinearLayout(this);
+        legendLayout.setOrientation(LinearLayout.HORIZONTAL);
+        legendLayout.setGravity(android.view.Gravity.CENTER);
+        legendLayout.setPadding(0, 16, 0, 0);
+
+        // 蓝色图例
+        LinearLayout blueLegend = new LinearLayout(this);
+        blueLegend.setOrientation(LinearLayout.HORIZONTAL);
+        blueLegend.setPadding(16, 0, 16, 0);
+
+        View blueDot = new View(this);
+        blueDot.setLayoutParams(new LinearLayout.LayoutParams(16, 16));
+        blueDot.setBackgroundColor(0xFF3B82F6);
+
+        TextView blueText = new TextView(this);
+        blueText.setText("按时服药");
+        blueText.setTextColor(0xFF4B5563);
+        blueText.setTextSize(12);
+        blueText.setPadding(8, 0, 0, 0);
+
+        blueLegend.addView(blueDot);
+        blueLegend.addView(blueText);
+
+        // 红色图例
+        LinearLayout redLegend = new LinearLayout(this);
+        redLegend.setOrientation(LinearLayout.HORIZONTAL);
+        redLegend.setPadding(16, 0, 16, 0);
+
+        View redDot = new View(this);
+        redDot.setLayoutParams(new LinearLayout.LayoutParams(16, 16));
+        redDot.setBackgroundColor(0xFFEF4444);
+
+        TextView redText = new TextView(this);
+        redText.setText("漏服");
+        redText.setTextColor(0xFF4B5563);
+        redText.setTextSize(12);
+        redText.setPadding(8, 0, 0, 0);
+
+        redLegend.addView(redDot);
+        redLegend.addView(redText);
+
+        legendLayout.addView(blueLegend);
+        legendLayout.addView(redLegend);
+
+        contentLayout.addView(legendLayout);
+
+        // 添加数据表格
+        addDataTable(contentLayout, dateList, dateLabels, dailyStats);
 
         containerStats.addView(cardView);
     }
 
+
     /**
-     * 用药习惯分析
+     * 添加数据表格
      */
-    private void addMedicationHabitsStats() {
-        if (medicationLogs.isEmpty()) {
-            return;
-        }
+    private void addDataTable(LinearLayout parent, List<String> dateList, List<String> dateLabels, Map<String, int[]> dailyStats) {
+        // 创建表格布局
+        LinearLayout tableLayout = new LinearLayout(this);
+        tableLayout.setOrientation(LinearLayout.VERTICAL);
+        tableLayout.setPadding(0, 16, 0, 0);
 
-        View cardView = createStatCard("⏰ 用药习惯分析");
-        LinearLayout contentLayout = cardView.findViewById(R.id.cardContent);
+        // 表格标题
+        LinearLayout headerRow = new LinearLayout(this);
+        headerRow.setOrientation(LinearLayout.HORIZONTAL);
+        headerRow.setPadding(8, 8, 8, 8);
+        headerRow.setBackgroundColor(0xFFF3F4F6);
 
-        // 统计各时间段的服药情况 - 由于 MedicationLogResponse 可能没有 takeTime，这里简化处理
-        // 实际使用时，如果后端返回的数据包含 takeTime，可以取消注释
-        /*
-        Map<String, int[]> timeStats = new HashMap<>();
-        timeStats.put("早上 (06:00-10:00)", new int[]{0, 0});
-        timeStats.put("中午 (11:00-13:00)", new int[]{0, 0});
-        timeStats.put("晚上 (17:00-21:00)", new int[]{0, 0});
-        timeStats.put("睡前 (21:00-23:00)", new int[]{0, 0});
-        timeStats.put("其他时间", new int[]{0, 0});
+        TextView headerDate = new TextView(this);
+        headerDate.setText("日期");
+        headerDate.setTextColor(0xFF374151);
+        headerDate.setTextSize(14);
+        headerDate.setTypeface(null, android.graphics.Typeface.BOLD);
+        headerDate.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
 
-        for (MedicationLogResponse log : medicationLogs) {
-            String takeTime = log.takeTime;
-            if (takeTime == null || takeTime.isEmpty()) {
-                continue;
+        TextView headerOnTime = new TextView(this);
+        headerOnTime.setText("按时");
+        headerOnTime.setTextColor(0xFF3B82F6);
+        headerOnTime.setTextSize(14);
+        headerOnTime.setTypeface(null, android.graphics.Typeface.BOLD);
+        headerOnTime.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        headerOnTime.setGravity(android.view.Gravity.CENTER);
+
+        TextView headerMissed = new TextView(this);
+        headerMissed.setText("漏服");
+        headerMissed.setTextColor(0xFFEF4444);
+        headerMissed.setTextSize(14);
+        headerMissed.setTypeface(null, android.graphics.Typeface.BOLD);
+        headerMissed.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        headerMissed.setGravity(android.view.Gravity.CENTER);
+
+        headerRow.addView(headerDate);
+        headerRow.addView(headerOnTime);
+        headerRow.addView(headerMissed);
+        tableLayout.addView(headerRow);
+
+        // 表格数据行
+        for (int i = 0; i < dateList.size(); i++) {
+            String date = dateList.get(i);
+            int[] stats = dailyStats.get(date);
+
+            LinearLayout dataRow = new LinearLayout(this);
+            dataRow.setOrientation(LinearLayout.HORIZONTAL);
+            dataRow.setPadding(8, 12, 8, 12);
+
+            if (i % 2 == 0) {
+                dataRow.setBackgroundColor(0xFFFFFFFF);
+            } else {
+                dataRow.setBackgroundColor(0xFFF9FAFB);
             }
 
-            try {
-                String[] parts = takeTime.split(":");
-                int hour = Integer.parseInt(parts[0]);
+            TextView tvDate = new TextView(this);
+            tvDate.setText(dateLabels.get(i));
+            tvDate.setTextColor(0xFF4B5563);
+            tvDate.setTextSize(14);
+            tvDate.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
 
-                String period = getTimePeriod(hour);
-                int[] stats = timeStats.get(period);
-                if (stats != null) {
-                    stats[0]++; // 总次数
-                    if (log.status != null && log.status == 1) {
-                        stats[1]++; // 按时次数
-                    }
-                }
-            } catch (Exception e) {
-                // 忽略解析错误
-            }
+            TextView tvOnTime = new TextView(this);
+            tvOnTime.setText(String.valueOf(stats[1]));
+            tvOnTime.setTextColor(0xFF3B82F6);
+            tvOnTime.setTextSize(14);
+            tvOnTime.setTypeface(null, android.graphics.Typeface.BOLD);
+            tvOnTime.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+            tvOnTime.setGravity(android.view.Gravity.CENTER);
+
+            TextView tvMissed = new TextView(this);
+            tvMissed.setText(String.valueOf(stats[2]));
+            tvMissed.setTextColor(0xFFEF4444);
+            tvMissed.setTextSize(14);
+            tvMissed.setTypeface(null, android.graphics.Typeface.BOLD);
+            tvMissed.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+            tvMissed.setGravity(android.view.Gravity.CENTER);
+
+            dataRow.addView(tvDate);
+            dataRow.addView(tvOnTime);
+            dataRow.addView(tvMissed);
+
+            tableLayout.addView(dataRow);
         }
 
-        // 显示各时间段统计
-        boolean hasData = false;
-        for (Map.Entry<String, int[]> entry : timeStats.entrySet()) {
-            String period = entry.getKey();
-            int[] stats = entry.getValue();
-
-            if (stats[0] == 0) {
-                continue;
-            }
-
-            hasData = true;
-            double rate = stats[1] * 100.0 / stats[0];
-
-            LinearLayout periodLayout = new LinearLayout(this);
-            periodLayout.setOrientation(LinearLayout.HORIZONTAL);
-            periodLayout.setPadding(0, 8, 0, 8);
-
-            TextView tvPeriod = new TextView(this);
-            tvPeriod.setText(period);
-            tvPeriod.setTextColor(0xFF374151);
-            tvPeriod.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-
-            TextView tvRate = new TextView(this);
-            tvRate.setText(String.format(Locale.getDefault(), "%.0f%% (%d/%d)", rate, stats[1], stats[0]));
-            tvRate.setTextColor(rate >= 80 ? 0xFF10B981 : (rate >= 60 ? 0xFFF59E0B : 0xFFEF4444));
-            tvRate.setTypeface(null, android.graphics.Typeface.BOLD);
-
-            periodLayout.addView(tvPeriod);
-            periodLayout.addView(tvRate);
-            contentLayout.addView(periodLayout);
-        }
-
-        if (!hasData) {
-            TextView tvEmpty = new TextView(this);
-            tvEmpty.setText("暂无时间段统计数据");
-            tvEmpty.setTextColor(0xFF6B7280);
-            tvEmpty.setPadding(0, 16, 0, 16);
-            tvEmpty.setGravity(android.view.Gravity.CENTER);
-            contentLayout.addView(tvEmpty);
-        }
-        */
-
-        // 由于缺少时间数据，暂时显示提示信息
-        TextView tvInfo = new TextView(this);
-        tvInfo.setText("当前版本暂不支持按时间段统计，后续版本将完善此功能");
-        tvInfo.setTextColor(0xFF6B7280);
-        tvInfo.setPadding(0, 16, 0, 16);
-        tvInfo.setGravity(android.view.Gravity.CENTER);
-        contentLayout.addView(tvInfo);
-
-        containerStats.addView(cardView);
+        parent.addView(tableLayout);
     }
 
     /**
