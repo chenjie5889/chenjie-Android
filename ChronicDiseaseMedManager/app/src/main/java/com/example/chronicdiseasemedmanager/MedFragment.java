@@ -145,7 +145,7 @@ public class MedFragment extends Fragment {
     private void initRetrofit() {
         try {
             apiService = new Retrofit.Builder()
-                    .baseUrl("http://192.168.71.67:8080/")
+                    .baseUrl("http://192.168.137.1:8080/")
                     .addConverterFactory(GsonConverterFactory.create())
                     .build()
                     .create(ApiService.class);
